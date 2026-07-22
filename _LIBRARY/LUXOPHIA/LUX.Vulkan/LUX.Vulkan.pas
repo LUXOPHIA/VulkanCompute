@@ -34,6 +34,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
                  TVkArgume       = TVkArgume <TVkSystem,TVkDevice,TVkContex>;
                  TVkSamplr       = TVkSamplr <TVkSystem,TVkDevice,TVkContex>;
                  TVkMemory       = TVkMemory <TVkSystem,TVkDevice,TVkContex>;
+               TVkLibrars        = TVkLibrars<TVkSystem,TVkDevice,TVkContex>;
+                 TVkLibrar       = TVkLibrar <TVkSystem,TVkDevice,TVkContex>;
                TVkShaders        = TVkShaders<TVkSystem,TVkDevice,TVkContex>;
                  TVkShader       = TVkShader <TVkSystem,TVkDevice,TVkContex>;
                    TVkKernels    = TVkKernels<TVkSystem,TVkDevice,TVkContex,TVkShader>;
