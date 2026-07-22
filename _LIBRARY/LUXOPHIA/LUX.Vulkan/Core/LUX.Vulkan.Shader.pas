@@ -908,7 +908,8 @@ function TVkShader<TVkSystem_,TVkDevice_,TVkContex_>.GetCompileOK :Boolean;
 begin
      if not _Refled then Reflect;  // 必要ならコンパイルを実行する
 
-     Result := _CompOK;
+     // コンパイル済の SPIR-V を直接与えた場合（Compile を通らない）も True とする
+     Result := _CompOK or ( _Binary.Size > 0 );
 end;
 
 function TVkShader<TVkSystem_,TVkDevice_,TVkContex_>.GetCompileLog :String;
