@@ -9,7 +9,7 @@ permalink: /
 [Vulkan](https://en.wikipedia.org/wiki/Vulkan) for [Delphi](https://www.embarcadero.com/products/delphi).
 
 A class library to run **GLSL compute shaders** on GPUs via the Vulkan API.
-The design mirrors the sibling [`LUX.GPU.OpenCL`](https://github.com/LUXOPHIA/LUX.GPU.OpenCL/) library, so OpenCL-based applications can be ported with minimal changes.
+Every Vulkan object is wrapped in a class, and the classes form a tree that mirrors the ownership of the underlying handles, so creation order and lifetimes are handled for you.
 Only **compute** is implemented for now; the class hierarchy is designed to be extended toward graphics (swapchain / render pass) in the future.
 
 ----
@@ -24,7 +24,7 @@ Delphi translations of the official C headers ([KhronosGroup/Vulkan-Headers](htt
 > [`vulkan_win32.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Vulkan/vulkan_win32.pas) ：VK_KHR_win32_surface（→ vulkan_win32.h）  
 > [`vulkan_functions.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Vulkan/vulkan_functions.pas) ：Dynamic loading of all commands from `vulkan-1.dll`
 
-Naming follows the same convention as the OpenCL import library:
+Naming follows a mechanical convention:
 C type `VkFoo` → `T_VkFoo` ／ pointer `P_VkFoo` ／ function type `PFN_vkFoo` → `T_PFN_vkFoo`.
 All constants (`VK_...`) keep their original names.
 
@@ -55,7 +55,7 @@ All constants (`VK_...`) keep their original names.
 ### ⬤ 1.3. [`/Glslang`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Glslang) : GLSL compiler
 
 Vulkan consumes **SPIR-V**, not GLSL — the driver has no built-in shader compiler.
-This library therefore embeds [glslang](https://github.com/KhronosGroup/glslang)（the Khronos reference compiler, introduced as a subtree under `/：KhronosGroup/glslang`）so that GLSL can be compiled **at runtime**, exactly like `clBuildProgram` of OpenCL.
+This library therefore embeds [glslang](https://github.com/KhronosGroup/glslang)（the Khronos reference compiler, introduced as a subtree under `/：KhronosGroup/glslang`）so that GLSL can be compiled **at runtime**.
 
 > [`glslang_c_shader_types.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_c_shader_types.pas) ：Enumerations（→ glslang_c_shader_types.h）  
 > [`glslang_c_interface.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_c_interface.pas) ：Structures ＋ function types（→ glslang_c_interface.h）  
@@ -195,7 +195,7 @@ Loading a `.spv` requires no GLSL source at all — `glslang.dll` is then never 
 
 ### ⬤ 2.7. Kernel
 The "**kernel**" object (`TVkKernel`) is a compute pipeline (`VkPipeline`), and internally creates the descriptor set layout ／ pipeline layout ／ descriptor pool ／ descriptor set from the shader reflection.
-Arguments are connected **by name**, exactly like the OpenCL library.
+Arguments are connected **by name**, using the identifiers reflected from the shader.
 > `Object Pascal`
 > ```Delphi
 > _Kernel := TVkKernel.Create( _Shader, 'main', _Queuer );
