@@ -43,14 +43,35 @@ All constants (`VK_...`) keep their original names.
 > 　　　　　　　　　┃　┣[`TVkBuffer`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Argume.Memory.Buffer.pas#L24) ：Buffer（VkBuffer）  
 > 　　　　　　　　　┃　┣[`TVkImager`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Argume.Memory.Imager.pas#L26) ：Image（VkImage ＋ VkImageView）  
 > 　　　　　　　　　┃　┗[`TVkSamplr`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Argume.Samplr.pas#L21) ：Sampler（VkSampler）  
-> 　　　　　　　　　┗[`TVkShaders`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas#L147) ：Shader list  
-> 　　　　　　　　　　　┗[`TVkShader`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas#L92) ：Shader（VkShaderModule ＋ SPIR-V reflection）  
+> 　　　　　　　　　┣[`TVkLibrars`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：Library list  
+> 　　　　　　　　　┃　┗[`TVkLibrar`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：Library（`#include`d GLSL）  
+> 　　　　　　　　　┗[`TVkShaders`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：Shader list  
+> 　　　　　　　　　　　┗[`TVkShader`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：Shader（GLSL → SPIR-V ＋ reflection）  
 > 　　　　　　　　　　　　　┗[`TVkKernels`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L185) ：Kernel list  
 > 　　　　　　　　　　　　　　　┗[`TVkKernel`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L109) ：Kernel（VkPipeline ＋ VkDescriptorSet）  
 > 　　　　　　　　　　　　　　　　　┗[`TVkParames`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L67) ：Parameter list  
 > 　　　　　　　　　　　　　　　　　　　┗[`TVkParame`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L32) ：Parameter
 
-### ⬤ 1.3. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) : FMX streams
+### ⬤ 1.3. [`/Glslang`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Glslang) : GLSL compiler
+
+Vulkan consumes **SPIR-V**, not GLSL — the driver has no built-in shader compiler.
+This library therefore embeds [glslang](https://github.com/KhronosGroup/glslang)（the Khronos reference compiler, introduced as a subtree under `/：KhronosGroup/glslang`）so that GLSL can be compiled **at runtime**, exactly like `clBuildProgram` of OpenCL.
+
+> [`glslang_c_shader_types.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_c_shader_types.pas) ：Enumerations（→ glslang_c_shader_types.h）  
+> [`glslang_c_interface.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_c_interface.pas) ：Structures ＋ function types（→ glslang_c_interface.h）  
+> [`glslang_functions.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_functions.pas) ：Dynamic loading of all commands from `glslang.dll`  
+> [`MakeGlslang.ps1`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/_DLL/MakeGlslang.ps1) ：Builds `glslang.dll` from the subtree with CMake（**normally unnecessary** — prebuilt DLLs are committed）  
+> 　　※ Requires **CMake** and the **MSVC C++ compiler**（Visual Studio, or the free Build Tools with the "Desktop development with C++" workload）. The VC++ *redistributable* is not enough — it contains no compiler.
+
+[`_DLL/Win32/glslang.dll`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/_DLL) and [`_DLL/Win64/glslang.dll`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/_DLL) are committed to this repository, so **neither the Vulkan SDK nor CMake is required** to build an application: Delphi alone is enough.
+Copy the matching DLL next to your executable.
+The DLLs are built without SPIRV-Tools（`ENABLE_OPT=OFF`）and with a statically linked CRT（`/MT`）, so they depend on nothing but `KERNEL32.dll`.
+
+> ※ `glslang_default_resource()` lives in the separate `glslang-default-resource-limits` library and is therefore **not** exported by `glslang.dll`. The default limits are instead provided as the Pascal constant `DefaultTBuiltInResource`, transcribed from `ResourceLimits.cpp`.
+
+> ※ glslang is licensed under BSD-3-Clause / Apache-2.0（see [`LICENSE.txt`](https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt)）, which permits this redistribution.
+
+### ⬤ 1.4. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) : FMX streams
 
 Copy images between `TVkImager` and FireMonkey `TBitmap`（[`TVkStream1D_FMX`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Stream/LUX.Vulkan.Stream.FMX.D1.pas) ／ [`TVkStream2D_FMX`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Stream/LUX.Vulkan.Stream.FMX.D2.pas)）.
 
@@ -129,22 +150,50 @@ The sampler object (`TVkSamplr`) defines the interpolation（linear ／ mirrored
 > _Samplr := TVkSamplr.Create( _Contex );
 > ```
 
-### ⬤ 2.5. Shader
-The "**shader**" object (`TVkShader`) holds the GLSL source (for display) and the **SPIR-V** binary (for execution).
-Since Vulkan has no runtime GLSL compiler, compile GLSL to SPIR-V offline（e.g. `glslangValidator` or `shaderc`）.
-The class **reflects** the SPIR-V binary by itself: descriptor bindings (name / binding / type), entry points, and `local_size` are extracted automatically.
+### ⬤ 2.5. Library
+The "**library**" object (`TVkLibrar`) is a GLSL source that is `#include`d by shaders.
+It is resolved **by name** at compile time — no file system access, and no textual pre-expansion.
+> `Object Pascal`
+> ```Delphi
+> _Librar := TVkLibrar.Create( _Contex );
+>
+> _Librar.Source.LoadFromFile( 'Librar.glsl' );  // Name becomes 'Librar.glsl'
+> ```
+> `GLSL`
+> ```GLSL
+> #extension GL_GOOGLE_include_directive : require
+> #include "Librar.glsl"
+> ```
+
+### ⬤ 2.6. Shader
+The "**shader**" object (`TVkShader`) holds the GLSL source and the **SPIR-V** binary.
+Load the GLSL source and the class **compiles it at runtime**（via `glslang.dll`）on first use, then **reflects** the resulting SPIR-V by itself: descriptor bindings (name / binding / type), entry points, and `local_size` are extracted automatically.
+Editing `Source` at any time triggers a recompilation.
 > `Object Pascal`
 > ```Delphi
 > _Shader := TVkShader.Create( _Contex );
 >
-> _Shader.Source.LoadFromFile( 'Execut.comp' );  // GLSL source (for display)
-> _Shader.Binary.LoadFromFile( 'Execut.spv'  );  // SPIR-V binary (for execution)
+> _Shader.Source.LoadFromFile( 'Execut.comp' );  // GLSL source
 >
-> _Shader.Bindins    :TArray<TVkBinding>  // Reflected descriptor bindings
-> _Shader.LocalX/Y/Z :Integer             // Reflected local_size
+> _Shader.CompileOK  :Boolean            // Compile status
+> _Shader.CompileLog :String             // Compile log ( errors and warnings )
+> _Shader.Binary     :TVkBinary          // Generated SPIR-V
+> _Shader.Bindins    :TArray<TVkBinding> // Reflected descriptor bindings
+> _Shader.LocalX/Y/Z :Integer            // Reflected local_size
 > ```
 
-### ⬤ 2.6. Kernel
+The **SPIR-V** binary (`TVkBinary`) can also be read and written directly, so a shader can be pre-compiled and shipped as a `.spv` file.
+Loading a `.spv` requires no GLSL source at all — `glslang.dll` is then never loaded — and reflection works just the same.
+> `Object Pascal`
+> ```Delphi
+> _Shader.Binary.SaveToFile( 'Execut.spv' );  // Compiles if necessary, then saves
+> _Shader.Binary.LoadFromFile( 'Execut.spv' );  // Uses the SPIR-V as-is
+>
+> _Shader.Binary.SaveToStream( Stream );  // ( TStream versions are also available )
+> _Shader.Binary.LoadFromStream( Stream );
+> ```
+
+### ⬤ 2.7. Kernel
 The "**kernel**" object (`TVkKernel`) is a compute pipeline (`VkPipeline`), and internally creates the descriptor set layout ／ pipeline layout ／ descriptor pool ／ descriptor set from the shader reflection.
 Arguments are connected **by name**, exactly like the OpenCL library.
 > `Object Pascal`

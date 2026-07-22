@@ -43,14 +43,35 @@ C の型 `VkFoo` → `T_VkFoo` ／ ポインタ `P_VkFoo` ／ 関数型 `PFN_vkF
 > 　　　　　　　　　┃　┣[`TVkBuffer`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Argume.Memory.Buffer.pas#L24) ：バッファ（VkBuffer）  
 > 　　　　　　　　　┃　┣[`TVkImager`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Argume.Memory.Imager.pas#L26) ：イメージ（VkImage ＋ VkImageView）  
 > 　　　　　　　　　┃　┗[`TVkSamplr`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Argume.Samplr.pas#L21) ：サンプラー（VkSampler）  
-> 　　　　　　　　　┗[`TVkShaders`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas#L147) ：シェーダリスト  
-> 　　　　　　　　　　　┗[`TVkShader`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas#L92) ：シェーダ（VkShaderModule ＋ SPIR-V リフレクション）  
+> 　　　　　　　　　┣[`TVkLibrars`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：ライブラリリスト  
+> 　　　　　　　　　┃　┗[`TVkLibrar`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：ライブラリ（`#include` される GLSL）  
+> 　　　　　　　　　┗[`TVkShaders`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：シェーダリスト  
+> 　　　　　　　　　　　┗[`TVkShader`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Shader.pas) ：シェーダ（GLSL → SPIR-V ＋ リフレクション）  
 > 　　　　　　　　　　　　　┗[`TVkKernels`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L185) ：カーネルリスト  
 > 　　　　　　　　　　　　　　　┗[`TVkKernel`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L109) ：カーネル（VkPipeline ＋ VkDescriptorSet）  
 > 　　　　　　　　　　　　　　　　　┗[`TVkParames`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L67) ：仮引数リスト  
 > 　　　　　　　　　　　　　　　　　　　┗[`TVkParame`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Core/LUX.Vulkan.Kernel.pas#L32) ：仮引数
 
-### ⬤ 1.3. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) ：FMX ストリーム
+### ⬤ 1.3. [`/Glslang`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Glslang) ：GLSL コンパイラ
+
+Vulkan が受け取るのは GLSL ではなく **SPIR-V** であり、ドライバはシェーダコンパイラを内蔵していません。
+そこで本ライブラリは [glslang](https://github.com/KhronosGroup/glslang)（Khronos 公式のリファレンスコンパイラ。`/：KhronosGroup/glslang` に SubTree で導入済）を組み込み、OpenCL の `clBuildProgram` と同じように **GLSL を実行時にコンパイル**します。
+
+> [`glslang_c_shader_types.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_c_shader_types.pas) ：列挙型（→ glslang_c_shader_types.h）  
+> [`glslang_c_interface.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_c_interface.pas) ：構造体 ＋ 関数型（→ glslang_c_interface.h）  
+> [`glslang_functions.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Glslang/glslang_functions.pas) ：`glslang.dll` からの全コマンドの動的ロード  
+> [`MakeGlslang.ps1`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/_DLL/MakeGlslang.ps1) ：SubTree から CMake で `glslang.dll` をビルドする（**通常は実行不要** — ビルド済 DLL を収録済）  
+> 　　※ **CMake** と **MSVC の C++ コンパイラ**（Visual Studio、または無償の Build Tools の「C++ によるデスクトップ開発」ワークロード）が必要。VC++ *再頒布可能パッケージ*ではコンパイラが入らないため不可。
+
+[`_DLL/Win32/glslang.dll`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/_DLL) と [`_DLL/Win64/glslang.dll`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/_DLL) を本リポジトリに収録しているため、アプリのビルドに **Vulkan SDK も CMake も不要**です。Delphi だけでビルドできます。
+使用するアーキテクチャの DLL を実行ファイルと同じフォルダへコピーしてください。
+DLL は SPIRV-Tools 非依存（`ENABLE_OPT=OFF`）かつ CRT 静的リンク（`/MT`）でビルドしているため、`KERNEL32.dll` 以外に依存するものはありません。
+
+> ※ `glslang_default_resource()` は別ライブラリ `glslang-default-resource-limits` 側にあり、`glslang.dll` からは公開され**ません**。そのため既定のリソース制限は、`ResourceLimits.cpp` から移植した Pascal の定数 `DefaultTBuiltInResource` として持っています。
+
+> ※ glslang のライセンスは BSD-3-Clause ／ Apache-2.0（[`LICENSE.txt`](https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt)）であり、この再頒布が許諾されています。
+
+### ⬤ 1.4. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) ：FMX ストリーム
 
 `TVkImager` と FireMonkey の `TBitmap` の間で画像をコピーします（[`TVkStream1D_FMX`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Stream/LUX.Vulkan.Stream.FMX.D1.pas) ／ [`TVkStream2D_FMX`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Stream/LUX.Vulkan.Stream.FMX.D2.pas)）。
 
@@ -129,22 +150,50 @@ C の型 `VkFoo` → `T_VkFoo` ／ ポインタ `P_VkFoo` ／ 関数型 `PFN_vkF
 > _Samplr := TVkSamplr.Create( _Contex );
 > ```
 
-### ⬤ 2.5. シェーダ
-「**シェーダ**」オブジェクト（`TVkShader`）は、GLSL ソース（表示用）と **SPIR-V** バイナリ（実行用）を保持します。
-Vulkan には実行時の GLSL コンパイラが無いため、GLSL は事前に SPIR-V へコンパイルします（`glslangValidator` や `shaderc` など）。
-本クラスは SPIR-V バイナリを自前で**リフレクション**し、記述子バインディング（名前／番号／種別）、エントリポイント、`local_size` を自動的に抽出します。
+### ⬤ 2.5. ライブラリ
+「**ライブラリ**」オブジェクト（`TVkLibrar`）は、シェーダから `#include` される GLSL ソースです。
+コンパイル時に**名前で**解決されます（ファイルシステムへのアクセスも、テキストの事前展開も行ないません）。
+> `Object Pascal`
+> ```Delphi
+> _Librar := TVkLibrar.Create( _Contex );
+>
+> _Librar.Source.LoadFromFile( 'Librar.glsl' );  // Name が 'Librar.glsl' になる
+> ```
+> `GLSL`
+> ```GLSL
+> #extension GL_GOOGLE_include_directive : require
+> #include "Librar.glsl"
+> ```
+
+### ⬤ 2.6. シェーダ
+「**シェーダ**」オブジェクト（`TVkShader`）は、GLSL ソースと **SPIR-V** バイナリを保持します。
+GLSL ソースをロードすると、最初の使用時に**実行時コンパイル**（`glslang.dll` を使用）が行なわれ、生成された SPIR-V を自前で**リフレクション**して、記述子バインディング（名前／番号／種別）、エントリポイント、`local_size` を自動的に抽出します。
+`Source` を書き換えると、自動的に再コンパイルされます。
 > `Object Pascal`
 > ```Delphi
 > _Shader := TVkShader.Create( _Contex );
 >
-> _Shader.Source.LoadFromFile( 'Execut.comp' );  // GLSL ソース（表示用）
-> _Shader.Binary.LoadFromFile( 'Execut.spv'  );  // SPIR-V バイナリ（実行用）
+> _Shader.Source.LoadFromFile( 'Execut.comp' );  // GLSL ソース
 >
-> _Shader.Bindins    :TArray<TVkBinding>  // リフレクションで得た記述子バインディング
-> _Shader.LocalX/Y/Z :Integer             // リフレクションで得た local_size
+> _Shader.CompileOK  :Boolean            // コンパイルの成否
+> _Shader.CompileLog :String             // コンパイルログ（エラー・警告）
+> _Shader.Binary     :TVkBinary          // 生成された SPIR-V
+> _Shader.Bindins    :TArray<TVkBinding> // リフレクションで得た記述子バインディング
+> _Shader.LocalX/Y/Z :Integer            // リフレクションで得た local_size
 > ```
 
-### ⬤ 2.6. カーネル
+**SPIR-V** バイナリ（`TVkBinary`）は直接の読み書きにも対応しているため、シェーダを事前コンパイルして `.spv` ファイルで配布することもできます。
+`.spv` をロードする場合は GLSL ソースが一切不要で（`glslang.dll` もロードされません）、リフレクションは同様に機能します。
+> `Object Pascal`
+> ```Delphi
+> _Shader.Binary.SaveToFile( 'Execut.spv' );    // 未コンパイルならコンパイルしてから保存
+> _Shader.Binary.LoadFromFile( 'Execut.spv' );  // SPIR-V をそのまま使用
+>
+> _Shader.Binary.SaveToStream( Stream );        // （TStream 版もあります）
+> _Shader.Binary.LoadFromStream( Stream );
+> ```
+
+### ⬤ 2.7. カーネル
 「**カーネル**」オブジェクト（`TVkKernel`）は演算パイプライン（`VkPipeline`）であり、シェーダのリフレクション結果から記述子セットレイアウト／パイプラインレイアウト／記述子プール／記述子セットを内部で生成します。
 実引数は OpenCL ライブラリと同様に**名前で**接続します。
 > `Object Pascal`
