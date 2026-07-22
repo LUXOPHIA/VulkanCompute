@@ -27,12 +27,14 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
             TVkContex_  = TVkContex <TVkSystem_,TVkDevice_>;
             TVkQueuers_ = TVkQueuers<TVkSystem_,TVkDevice_,TVkContex_>;
             TVkArgumes_ = TVkArgumes<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkLibrars_ = TVkLibrars<TVkSystem_,TVkDevice_,TVkContex_>;
             TVkShaders_ = TVkShaders<TVkSystem_,TVkDevice_,TVkContex_>;
      protected
        _Queuers :TVkQueuers_;
        _Handle  :T_VkDevice;
        _FamilyI :Integer;
        _Argumes :TVkArgumes_;
+       _Librars :TVkLibrars_;
        _Shaders :TVkShaders_;
        ///// A C C E S S O R
        function GetHandle :T_VkDevice;
@@ -52,6 +54,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Handle  :T_VkDevice  read GetHandle  write SetHandle;
        property FamilyI :Integer     read GetFamilyI                ;
        property Argumes :TVkArgumes_ read   _Argumes                ;
+       property Librars :TVkLibrars_ read   _Librars                ;
        property Shaders :TVkShaders_ read   _Shaders                ;
        ///// M E T H O D
        procedure FreeHandle;
@@ -167,6 +170,7 @@ begin
 
      _Queuers := TVkQueuers_.Create( Self );
      _Argumes := TVkArgumes_.Create( Self );
+     _Librars := TVkLibrars_.Create( Self );
      _Shaders := TVkShaders_.Create( Self );
 end;
 
@@ -178,6 +182,7 @@ end;
 destructor TVkContex<TVkSystem_,TVkDevice_>.Destroy;
 begin
      _Shaders.Free;
+     _Librars.Free;
      _Argumes.Free;
      _Queuers.Free;
 
