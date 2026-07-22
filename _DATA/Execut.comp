@@ -1,0 +1,74 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require   // #include を有効化する
+#ifndef EXECUT
+#define EXECUT
+//############################################################################## ■
+
+#include "Librar.glsl"
+
+layout( local_size_x = 16, local_size_y = 16 ) in;
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 P A R A M E T E R 】
+
+layout( std430, binding = 0 ) buffer TBuffer
+{
+  TSingleC Cent;
+  TSingleC Size;
+}
+Buffer;
+
+layout( binding = 1          ) uniform texture1D Textur;
+
+layout( binding = 2          ) uniform sampler   Samplr;
+
+layout( binding = 3, rgba8   ) writeonly uniform image2D Imager;
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
+
+TSingleC ScreenToComplex( const ivec2 P, const ivec2 S, const TSingleC Cent, const TSingleC Size )
+{
+  TSingleC Result;
+
+  Result.R = Cent.R + Size.R * ( 2 * ( P.x + 0.5 ) / S.x - 1 );
+  Result.I = Cent.I - Size.I * ( 2 * ( P.y + 0.5 ) / S.y - 1 );
+
+  return Result;
+}
+
+float ComplexToCount( const TSingleC C, const int MaxN )
+{
+  TSingleC Z = TSingleC( 0, 0 );
+
+  for ( int N = 1; N < MaxN; N++ )
+  {
+    Z = Add( Pow2( Z ), C );
+
+    if ( Abs( Z ) > 2 ) return N + 1 - log( log2( Abs( Z ) ) );
+  }
+
+  return MaxN;
+}
+
+//############################################################################## ■
+
+void main()
+{
+  const ivec2    P    = ivec2( gl_GlobalInvocationID.xy );
+  const ivec2    S    = imageSize( Imager );
+  const TSingleC Cent = Buffer.Cent;
+  const TSingleC Size = Buffer.Size;
+  const int      MaxN = 1000;
+
+  if ( ( P.x >= S.x ) || ( P.y >= S.y ) ) return;
+
+  TSingleC C = ScreenToComplex( P, S, Cent, Size );
+
+  float N = ComplexToCount( C, MaxN );
+
+  vec4 T = texture( sampler1D( Textur, Samplr ), sqrt( N / MaxN ) );
+
+  imageStore( Imager, P, T );
+}
+
+//############################################################################## ■
+#endif

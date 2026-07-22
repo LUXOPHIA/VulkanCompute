@@ -1,0 +1,252 @@
+﻿object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Vulkan'
+  ClientHeight = 586
+  ClientWidth = 540
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  DesignerMasterStyle = 0
+  object TabControl1: TTabControl
+    Align = Client
+    Margins.Left = 10.000000000000000000
+    Margins.Top = 10.000000000000000000
+    Margins.Right = 10.000000000000000000
+    Margins.Bottom = 5.000000000000000000
+    Size.Width = 520.000000000000000000
+    Size.Height = 546.000000000000000000
+    Size.PlatformDefault = False
+    TabIndex = 2
+    TabOrder = 0
+    TabPosition = PlatformDefault
+    Sizes = (
+      520s
+      520s
+      520s
+      520s
+      520s
+      520s)
+    object TabItemS: TTabItem
+      CustomIcon = <
+        item
+        end>
+      TextSettings.Trimming = None
+      IsSelected = False
+      Size.Width = 58.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'System'
+      ExplicitSize.cx = 58.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object MemoS: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        StyledSettings = [Size, Style, FontColor]
+        TextSettings.Font.Family = 'MS Gothic'
+        Align = Client
+        Margins.Left = 10.000000000000000000
+        Margins.Top = 10.000000000000000000
+        Margins.Right = 10.000000000000000000
+        Margins.Bottom = 10.000000000000000000
+        Size.Width = 500.000000000000000000
+        Size.Height = 500.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Viewport.Width = 496.000000000000000000
+        Viewport.Height = 496.000000000000000000
+      end
+    end
+    object TabItemP: TTabItem
+      CustomIcon = <
+        item
+        end>
+      TextSettings.Trimming = None
+      IsSelected = False
+      Size.Width = 66.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Program'
+      ExplicitSize.cx = 48.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object TabControlP: TTabControl
+        Align = Client
+        Margins.Left = 10.000000000000000000
+        Margins.Top = 10.000000000000000000
+        Margins.Right = 10.000000000000000000
+        Margins.Bottom = 10.000000000000000000
+        Size.Width = 500.000000000000000000
+        Size.Height = 500.000000000000000000
+        Size.PlatformDefault = False
+        TabIndex = 1
+        TabOrder = 0
+        TabPosition = PlatformDefault
+        Sizes = (
+          500s
+          474s
+          500s
+          474s
+          500s
+          474s)
+        object TabItemPL: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = False
+          Size.Width = 56.000000000000000000
+          Size.Height = 26.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Library'
+          ExplicitSize.cx = 56.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object MemoPL: TMemo
+            Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+            DataDetectorTypes = []
+            StyledSettings = [Size, Style, FontColor]
+            TextSettings.Font.Family = 'MS Gothic'
+            Align = Client
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 10.000000000000000000
+            Size.Width = 480.000000000000000000
+            Size.Height = 454.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            Viewport.Width = 476.000000000000000000
+            Viewport.Height = 450.000000000000000000
+          end
+        end
+        object TabItemPE: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = True
+          Size.Width = 77.000000000000000000
+          Size.Height = 26.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Executable'
+          ExplicitSize.cx = 63.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object MemoPE: TMemo
+            Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+            DataDetectorTypes = []
+            StyledSettings = [Size, Style, FontColor]
+            TextSettings.Font.Family = 'MS Gothic'
+            Align = Client
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 10.000000000000000000
+            Size.Width = 480.000000000000000000
+            Size.Height = 454.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            Viewport.Width = 476.000000000000000000
+            Viewport.Height = 450.000000000000000000
+          end
+        end
+        object TabItemPB: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = False
+          Size.Width = 47.000000000000000000
+          Size.Height = 26.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Build'
+          ExplicitSize.cx = 62.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object MemoPB: TMemo
+            Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+            DataDetectorTypes = []
+            StyledSettings = [Size, Style, FontColor]
+            TextSettings.Font.Family = 'MS Gothic'
+            Align = Client
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 10.000000000000000000
+            Size.Width = 480.000000000000000000
+            Size.Height = 454.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 0
+            Viewport.Width = 476.000000000000000000
+            Viewport.Height = 450.000000000000000000
+          end
+        end
+      end
+    end
+    object TabItemR: TTabItem
+      CustomIcon = <
+        item
+        end>
+      TextSettings.Trimming = None
+      IsSelected = True
+      Size.Width = 53.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Result'
+      ExplicitSize.cx = 52.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object ImageR: TImage
+        MultiResBitmap = <
+          item
+          end>
+        Align = Fit
+        DisableInterpolation = True
+        Margins.Left = 10.000000000000000000
+        Margins.Top = 10.000000000000000000
+        Margins.Right = 10.000000000000000000
+        Margins.Bottom = 10.000000000000000000
+        Size.Width = 500.000000000000000000
+        Size.Height = 500.000000000000000000
+        Size.PlatformDefault = False
+        WrapMode = Stretch
+        OnMouseWheel = ImageRMouseWheel
+      end
+    end
+  end
+  object Timer1: TTimer
+    Enabled = False
+    Interval = 10
+    OnTimer = Timer1Timer
+    Left = 45
+    Top = 95
+  end
+  object ImageT: TImage
+    MultiResBitmap = <
+      item
+      end>
+    Align = Bottom
+    DisableInterpolation = True
+    Margins.Left = 10.000000000000000000
+    Margins.Top = 5.000000000000000000
+    Margins.Right = 10.000000000000000000
+    Margins.Bottom = 10.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = 566.000000000000000000
+    Size.Width = 520.000000000000000000
+    Size.Height = 10.000000000000000000
+    Size.PlatformDefault = False
+    WrapMode = Stretch
+    OnMouseWheel = ImageRMouseWheel
+  end
+end
