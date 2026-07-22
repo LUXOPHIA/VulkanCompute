@@ -1,4 +1,4 @@
-program Vulkan;
+﻿program VulkanCompute;
 
 uses
   System.StartUpCopy,
