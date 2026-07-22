@@ -384,7 +384,7 @@ begin
 
           if Assigned( glslang_default_resource )
           then resource := glslang_default_resource()
-          else resource := @GLSLANG_DEFAULT_RESOURCE;
+          else resource := @DefaultTBuiltInResource;
 
           callbacks.include_system      := VkIncludeFind;
           callbacks.include_local       := VkIncludeFind;
