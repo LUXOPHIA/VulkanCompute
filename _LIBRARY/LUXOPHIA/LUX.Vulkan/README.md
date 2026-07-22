@@ -203,6 +203,14 @@ Loading a `.spv` requires no GLSL source at all — `glslang.dll` is then never 
 > _Shader.Binary.LoadFromStream( Stream );
 > ```
 
+#### ▼ 2.6.1. Shipping without `glslang.dll`
+
+`glslang.dll` is loaded **lazily**, only when a GLSL source actually has to be compiled.
+An application that ships pre-compiled `.spv` files therefore **does not need to distribute `glslang.dll` at all** — loading, reflection and execution all work without it, and no error is raised.
+
+> ※ Assign in this order: **`Source` first, `Binary` last**.
+> Writing to `Source` discards the current `Binary`（editing the GLSL must invalidate the compiled result）, so loading a `.spv` and *then* filling `Source` for display would throw the SPIR-V away.
+
 ### ⬤ 2.7. Kernel
 The "**kernel**" object (`TVkKernel`) is a compute pipeline (`VkPipeline`), and internally creates the descriptor set layout ／ pipeline layout ／ descriptor pool ／ descriptor set from the shader reflection.
 Arguments are connected **by name**, using the identifiers reflected from the shader.
