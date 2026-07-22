@@ -123,6 +123,23 @@ begin
      end;
 end;
 
+procedure ShowLibrars( const Strings_:TStrings; const Librars_:TVkLibrars );
+var
+   L :TVkLibrar;
+begin
+     with Strings_ do
+     begin
+          Add( ' ┃　│　┃　│' );
+          Add( ' ┃　│　┃　┝ Librars(' + Librars_.Count.ToString + ') :TVkLibrars' );
+          for L in Librars_ do
+          begin
+               Add( ' ┃　│　┃　│　┃' );
+               Add( ' ┃　│　┃　│　┣・Librar[' + L.Order.ToString + '] :TVkLibrar' );
+               Add( ' ┃　│　┃　│　┃　├ Name = ' + L.Name );
+          end;
+     end;
+end;
+
 procedure ShowShaders( const Strings_:TStrings; const Shaders_:TVkShaders );
 var
    S :TVkShader;
@@ -138,6 +155,7 @@ begin
                Add( ' ┃　│　┃　│　┃' );
                Add( ' ┃　│　┃　│　┣・Shader[' + S.Order.ToString + '] :TVkShader' );
                Add( ' ┃　│　┃　│　┃　├ Name      = ' + S.Name );
+               Add( ' ┃　│　┃　│　┃　├ CompileOK = ' + BoolToStr( S.CompileOK, True ) );
                Add( ' ┃　│　┃　│　┃　├ Binary    = ' + S.Binary.Size.ToString + ' Bytes' );
                Add( ' ┃　│　┃　│　┃　├ LocalSize = ' + S.LocalX.ToString + ' × ' + S.LocalY.ToString + ' × ' + S.LocalZ.ToString );
 
@@ -207,6 +225,7 @@ begin
 
                ShowQueuers( Strings_, C.Queuers );
                ShowArgumes( Strings_, C.Argumes );
+               ShowLibrars( Strings_, C.Librars );
                ShowShaders( Strings_, C.Shaders );
           end;
      end;
