@@ -71,6 +71,16 @@ The DLLs are built without SPIRV-Tools（`ENABLE_OPT=OFF`）and with a staticall
 
 > ※ glslang is licensed under BSD-3-Clause / Apache-2.0（see [`LICENSE.txt`](https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt)）, which permits this redistribution.
 
+#### ▼ 1.3.1. GLSL only
+
+glslang can also compile **HLSL**, but this library supports **GLSL only** — `TVkShader` always selects the GLSL front-end.
+
+This is deliberate: the HLSL front-end of glslang is **deprecated and will be removed in a future major release**（[glslang issue #4210](https://github.com/KhronosGroup/glslang/issues/4210)）, so building on it would be a dead end.
+If you need HLSL, use [DXC](https://github.com/microsoft/DirectXShaderCompiler)（which emits SPIR-V directly）instead.
+[Slang](https://github.com/shader-slang/slang) is a separate compiler altogether and is not part of glslang.
+
+Note also that the source language is **never auto-detected** — GLSL and HLSL are chosen explicitly through `glslang_input_t.language`.
+
 ### ⬤ 1.4. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) : FMX streams
 
 Copy images between `TVkImager` and FireMonkey `TBitmap`（[`TVkStream1D_FMX`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Stream/LUX.Vulkan.Stream.FMX.D1.pas) ／ [`TVkStream2D_FMX`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/Stream/LUX.Vulkan.Stream.FMX.D2.pas)）.
