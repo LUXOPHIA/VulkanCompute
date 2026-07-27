@@ -30,17 +30,24 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
             TVkLibrars_ = TVkLibrars<TVkSystem_,TVkDevice_,TVkContex_>;
             TVkShaders_ = TVkShaders<TVkSystem_,TVkDevice_,TVkContex_>;
      protected
-       _Queuers :TVkQueuers_;
-       _Handle  :T_VkDevice;
-       _FamilyI :Integer;
-       _Argumes :TVkArgumes_;
-       _Librars :TVkLibrars_;
-       _Shaders :TVkShaders_;
+       _Queuers  :TVkQueuers_;
+       _Handle   :T_VkDevice;
+       _FamilyI  :Integer;
+       _QueFlags :T_VkQueueFlags;
+       _Extens   :TArray<String>;
+       _Argumes  :TVkArgumes_;
+       _Librars  :TVkLibrars_;
+       _Shaders  :TVkShaders_;
        ///// A C C E S S O R
        function GetHandle :T_VkDevice;
        procedure SetHandle( const Handle_:T_VkDevice );
        function GetFamilyI :Integer;
+       function GetQueFlags :T_VkQueueFlags;
+       procedure SetQueFlags( const QueFlags_:T_VkQueueFlags );
+       function GetExtens :TArray<String>;
+       procedure SetExtens( const Extens_:TArray<String> );
        ///// M E T H O D
+       procedure CheckUnborn( const Method_:String );
        function CreateHandle :T_VkResult; virtual;
        function DestroHandle :T_VkResult; virtual;
      public
@@ -48,16 +55,20 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        constructor Create( const Device_:TVkDevice_ ); overload; virtual;
        destructor Destroy; override;
        ///// P R O P E R T Y
-       property Device  :TVkDevice_  read GetOwnere                 ;
-       property Contexs :TVkContexs_ read GetParent                 ;
-       property Queuers :TVkQueuers_ read   _Queuers                ;
-       property Handle  :T_VkDevice  read GetHandle  write SetHandle;
-       property FamilyI :Integer     read GetFamilyI                ;
-       property Argumes :TVkArgumes_ read   _Argumes                ;
-       property Librars :TVkLibrars_ read   _Librars                ;
-       property Shaders :TVkShaders_ read   _Shaders                ;
+       property Device   :TVkDevice_     read GetOwnere                   ;
+       property Contexs  :TVkContexs_    read GetParent                   ;
+       property Queuers  :TVkQueuers_    read   _Queuers                  ;
+       property Handle   :T_VkDevice     read GetHandle   write SetHandle  ;
+       property FamilyI  :Integer        read GetFamilyI                  ;
+       property QueFlags :T_VkQueueFlags read GetQueFlags write SetQueFlags;  // 要求するキューの能力（Handle の生成前にのみ設定可）
+       property Extens   :TArray<String> read GetExtens   write SetExtens  ;  // 追加で有効化するデバイス拡張（同）
+       property Argumes  :TVkArgumes_    read   _Argumes                  ;
+       property Librars  :TVkLibrars_    read   _Librars                  ;
+       property Shaders  :TVkShaders_    read   _Shaders                  ;
        ///// M E T H O D
        procedure FreeHandle;
+       function AvailExtens :TArray<String>;          // 物理デバイスが対応するデバイス拡張
+       function UsingExtens :TArray<String>; virtual; // 実際に有効化するデバイス拡張（対応するものだけ）
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkContexs<TVkSystem_,TVkDevice_>
@@ -118,15 +129,64 @@ begin
      Result := _FamilyI;
 end;
 
+//------------------------------------------------------------------------------
+
+function TVkContex<TVkSystem_,TVkDevice_>.GetQueFlags :T_VkQueueFlags;
+begin
+     Result := _QueFlags;
+end;
+
+procedure TVkContex<TVkSystem_,TVkDevice_>.SetQueFlags( const QueFlags_:T_VkQueueFlags );
+begin
+     CheckUnborn( 'TVkContex.QueFlags' );
+
+     _QueFlags := QueFlags_;
+end;
+
+//------------------------------------------------------------------------------
+
+function TVkContex<TVkSystem_,TVkDevice_>.GetExtens :TArray<String>;
+begin
+     Result := _Extens;
+end;
+
+procedure TVkContex<TVkSystem_,TVkDevice_>.SetExtens( const Extens_:TArray<String> );
+begin
+     CheckUnborn( 'TVkContex.Extens' );
+
+     _Extens := Extens_;
+end;
+
 //////////////////////////////////////////////////////////////////// M E T H O D
+
+procedure TVkContex<TVkSystem_,TVkDevice_>.CheckUnborn( const Method_:String );
+begin
+     // 論理デバイスの生成条件は、生成後には変えられない（子の資源がすべて無効になる）
+     if Assigned( _Handle ) then raise EVkError.Create( VK_ERROR_INITIALIZATION_FAILED,
+                                                       Method_ + ' は Handle の生成前にのみ設定できます。' );
+end;
+
+//------------------------------------------------------------------------------
 
 function TVkContex<TVkSystem_,TVkDevice_>.CreateHandle :T_VkResult;
 var
+   D :TVkDevice<TVkSystem_>;
    P :T_float;
    Q :T_VkDeviceQueueCreateInfo;
    I :T_VkDeviceCreateInfo;
+   E :TVkNames;
 begin
-     _FamilyI := TVkDevice<TVkSystem_>( Device ).FamilyByFlags( VK_QUEUE_COMPUTE_BIT );
+     D := TVkDevice<TVkSystem_>( Device );
+
+     _FamilyI := D.FamilyByFlags( _QueFlags );
+
+     // 要求をすべて満たすファミリが無ければ、能力を落として探し直す
+     if _FamilyI < 0 then _FamilyI := D.FamilyByFlags( VK_QUEUE_COMPUTE_BIT  );
+     if _FamilyI < 0 then _FamilyI := D.FamilyByFlags( VK_QUEUE_GRAPHICS_BIT );
+
+     if _FamilyI < 0 then Exit( VK_ERROR_INITIALIZATION_FAILED );
+
+     E := TVkNames.Create( UsingExtens );  // Vulkan の呼び出しまで生存させる
 
      P := 1;
 
@@ -142,12 +202,14 @@ begin
      FillChar( I, SizeOf( I ), 0 );
      with I do
      begin
-          sType                := VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-          queueCreateInfoCount := 1;
-          pQueueCreateInfos    := @Q;
+          sType                   := VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+          queueCreateInfoCount    := 1;
+          pQueueCreateInfos       := @Q;
+          enabledExtensionCount   := E.Count;
+          ppEnabledExtensionNames := E.Ptrs;
      end;
 
-     Result := vkCreateDevice( TVkDevice<TVkSystem_>( Device ).Handle, @I, nil, @_Handle );
+     Result := vkCreateDevice( D.Handle, @I, nil, @_Handle );
 end;
 
 function TVkContex<TVkSystem_,TVkDevice_>.DestroHandle :T_VkResult;
@@ -165,8 +227,10 @@ constructor TVkContex<TVkSystem_,TVkDevice_>.Create;
 begin
      inherited;
 
-     _Handle  := nil;
-     _FamilyI := -1;
+     _Handle   := nil;
+     _FamilyI  := -1;
+     _QueFlags := VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT;  // 描画と演算を兼ねる万能ファミリ
+     _Extens   := nil;
 
      _Queuers := TVkQueuers_.Create( Self );
      _Argumes := TVkArgumes_.Create( Self );
@@ -196,6 +260,20 @@ end;
 procedure TVkContex<TVkSystem_,TVkDevice_>.FreeHandle;
 begin
      if Assigned( _Handle ) then DestroHandle;
+end;
+
+//------------------------------------------------------------------------------
+
+function TVkContex<TVkSystem_,TVkDevice_>.AvailExtens :TArray<String>;
+begin
+     Result := TVkDevice<TVkSystem_>( Device ).AvailExtens;
+end;
+
+function TVkContex<TVkSystem_,TVkDevice_>.UsingExtens :TArray<String>;
+begin
+     // 表示窓（TVkViewer）に必要な VK_KHR_swapchain は常に有効化を試みる。
+     // 対応していない環境では黙って外される（オフスクリーン描画は影響を受けない）。
+     Result := VkNameFilter( [ VK_KHR_SWAPCHAIN_EXTENSION_NAME ] + _Extens, AvailExtens );
 end;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkContexs<TVkSystem_,TVkDevice_>

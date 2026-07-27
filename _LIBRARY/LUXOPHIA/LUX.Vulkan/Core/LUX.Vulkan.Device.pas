@@ -2,7 +2,7 @@
 
 interface //#################################################################### ■
 
-uses vk_platform, vulkan_core, vulkan_functions,
+uses vk_platform, vulkan_core, vulkan_win32, vulkan_functions,
      LUX.Data.List,
      LUX.Code.C,
      LUX.Vulkan.core,
@@ -60,6 +60,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// M E T H O D
        function FamilyByFlags( const Flags_:T_VkQueueFlags ) :Integer;
        function MemoryByFlags( const TypeBits_:T_uint32_t; const Flags_:T_VkMemoryPropertyFlags ) :Integer;
+       function AvailExtens :TArray<String>;  // この物理デバイスが対応するデバイス拡張
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkDevices<TVkSystem_>
@@ -86,6 +87,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Handle :T_VkInstance read GetHandle write SetHandle;
        ///// M E T H O D
        procedure FreeHandle;
+       function AvailExtens :TArray<String>;          // この環境が対応するインスタンス拡張
+       function UsingExtens :TArray<String>; virtual; // 実際に有効化するインスタンス拡張（対応するものだけ）
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C O N S T A N T 】
@@ -226,6 +229,33 @@ begin
      Result := -1;
 end;
 
+//------------------------------------------------------------------------------
+
+function TVkDevice<TVkSystem_>.AvailExtens :TArray<String>;
+var
+   N :T_uint32_t;
+   Ps :TArray<T_VkExtensionProperties>;
+   I :Integer;
+begin
+     Result := nil;
+
+     if not Assigned( vkEnumerateDeviceExtensionProperties ) then Exit;
+
+     N := 0;
+
+     if vkEnumerateDeviceExtensionProperties( _Handle, nil, @N, nil ) <> VK_SUCCESS then Exit;
+
+     if N = 0 then Exit;
+
+     SetLength( Ps, N );
+
+     if vkEnumerateDeviceExtensionProperties( _Handle, nil, @N, @Ps[0] ) <> VK_SUCCESS then Exit;
+
+     SetLength( Result, N );
+
+     for I := 0 to Integer( N )-1 do Result[ I ] := VkTextOf( @Ps[ I ].extensionName[0] );
+end;
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkDevices<TVkSystem_>
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
@@ -254,7 +284,10 @@ function TVkDevices<TVkSystem_>.CreateHandle :T_VkResult;
 var
    A :T_VkApplicationInfo;
    I :T_VkInstanceCreateInfo;
+   E :TVkNames;
 begin
+     E := TVkNames.Create( UsingExtens );  // Vulkan の呼び出しまで生存させる
+
      FillChar( A, SizeOf( A ), 0 );
      with A do
      begin
@@ -265,8 +298,10 @@ begin
      FillChar( I, SizeOf( I ), 0 );
      with I do
      begin
-          sType            := VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-          pApplicationInfo := @A;
+          sType                   := VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+          pApplicationInfo        := @A;
+          enabledExtensionCount   := E.Count;
+          ppEnabledExtensionNames := E.Ptrs;
      end;
 
      Result := vkCreateInstance( @I, nil, @_Handle );
@@ -330,6 +365,42 @@ end;
 procedure TVkDevices<TVkSystem_>.FreeHandle;
 begin
      if Assigned( _Handle ) then DestroHandle;
+end;
+
+//------------------------------------------------------------------------------
+
+function TVkDevices<TVkSystem_>.AvailExtens :TArray<String>;
+var
+   N :T_uint32_t;
+   Ps :TArray<T_VkExtensionProperties>;
+   I :Integer;
+begin
+     Result := nil;
+
+     if not Assigned( vkEnumerateInstanceExtensionProperties ) then Exit;
+
+     N := 0;
+
+     if vkEnumerateInstanceExtensionProperties( nil, @N, nil ) <> VK_SUCCESS then Exit;
+
+     if N = 0 then Exit;
+
+     SetLength( Ps, N );
+
+     if vkEnumerateInstanceExtensionProperties( nil, @N, @Ps[0] ) <> VK_SUCCESS then Exit;
+
+     SetLength( Result, N );
+
+     for I := 0 to Integer( N )-1 do Result[ I ] := VkTextOf( @Ps[ I ].extensionName[0] );
+end;
+
+function TVkDevices<TVkSystem_>.UsingExtens :TArray<String>;
+begin
+     // 表示窓（VkSurfaceKHR）に要る拡張だけを、対応している環境で有効化する。
+     // インスタンスは TVulkan の初期化時に生成されるため外から足す余地が無い。
+     // 追加が必要なら本メソッドを override する。
+     Result := VkNameFilter( [ VK_KHR_SURFACE_EXTENSION_NAME       ,
+                               VK_KHR_WIN32_SURFACE_EXTENSION_NAME ], AvailExtens );
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
