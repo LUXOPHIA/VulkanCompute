@@ -15,6 +15,25 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
 
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkNames
+
+     // 文字列の配列を C の char* の配列（ppEnabled*Names など）として渡すための保持箱。
+     // 変換した AnsiString を内部に保持するため、Vulkan の呼び出しが終わるまで
+     // このレコードを生存させておく必要がある。
+     TVkNames = record
+     private
+       _Datas :TArray<AnsiString>;  // 変換後の文字列の実体（Ptrs の指す先）
+       _Ptrs  :TArray<P_char>;
+       ///// A C C E S S O R
+       function GetCount :T_uint32_t;
+       function GetPtrs :PP_char;
+     public
+       constructor Create( const Names_:TArray<String> );
+       ///// P R O P E R T Y
+       property Count :T_uint32_t read GetCount;
+       property Ptrs  :PP_char    read GetPtrs ;  // 要素が無ければ nil
+     end;
+
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkVersion
 
      TVkVersion = record
@@ -53,9 +72,49 @@ function ErrorToMessage( const Error_:T_VkResult ) :String;
 
 procedure CheckVk( const Error_:T_VkResult; const Comment_:String = '' );
 
+// 固定長の char 配列（deviceName / extensionName など）を String へ変換する
+function VkTextOf( const Chars_:P_char ) :String;
+
+// Names_ のうち Availa_ に在るものだけを、Names_ の順序で返す（重複は除く）
+function VkNameFilter( const Names_,Availa_:TArray<String> ) :TArray<String>;
+
 implementation //############################################################### ■
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkNames
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+//////////////////////////////////////////////////////////////// A C C E S S O R
+
+function TVkNames.GetCount :T_uint32_t;
+begin
+     Result := Length( _Ptrs );
+end;
+
+function TVkNames.GetPtrs :PP_char;
+begin
+     if Length( _Ptrs ) = 0 then Result := nil
+                            else Result := @_Ptrs[ 0 ];
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TVkNames.Create( const Names_:TArray<String> );
+var
+   I :Integer;
+begin
+     SetLength( _Datas, Length( Names_ ) );
+     SetLength( _Ptrs , Length( Names_ ) );
+
+     for I := 0 to High( Names_ ) do
+     begin
+          _Datas[ I ] := AnsiString( Names_[ I ] );
+
+          _Ptrs[ I ] := P_char( _Datas[ I ] );
+     end;
+end;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkVersion
 
@@ -145,6 +204,35 @@ end;
 procedure CheckVk( const Error_:T_VkResult; const Comment_:String = '' );
 begin
      if Error_ <> VK_SUCCESS then raise EVkError.Create( Error_, Comment_ );
+end;
+
+//------------------------------------------------------------------------------
+
+function VkTextOf( const Chars_:P_char ) :String;
+begin
+     Result := String( AnsiString( Chars_ ) );
+end;
+
+function VkNameFilter( const Names_,Availa_:TArray<String> ) :TArray<String>;
+   //////////  Vulkan の拡張名は大文字小文字を区別する厳密一致
+   function Has( const Name_:String; const Names_:TArray<String> ) :Boolean;
+   var
+      N :String;
+   begin
+        for N in Names_ do if N = Name_ then Exit( True );
+
+        Result := False;
+   end;
+   //////////
+var
+   N :String;
+begin
+     Result := nil;
+
+     for N in Names_ do
+     begin
+          if Has( N, Availa_ ) and not Has( N, Result ) then Result := Result + [ N ];
+     end;
 end;
 
 end. //######################################################################### ■

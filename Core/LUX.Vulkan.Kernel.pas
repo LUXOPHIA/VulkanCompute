@@ -677,7 +677,14 @@ var
    AN :AnsiString;
    I :Integer;
    D :T_VkDevice;
+   M :T_VkShaderModule;
 begin
+     // シェーダが未コンパイル（GLSL のコンパイル失敗、SPIR-V 未設定など）の場合は、
+     // 空のモジュールをドライバへ渡さずにここで打ち切る。詳細は TVkShader.CompileLog を参照。
+     M := TVkShader<TVkSystem_,TVkDevice_,TVkContex_>( Shader ).Handle;
+
+     if M = Default( T_VkShaderModule ) then Exit( VK_ERROR_UNKNOWN );
+
      D := DeviceHandle;
 
      Bs := TVkShader<TVkSystem_,TVkDevice_,TVkContex_>( Shader ).Bindins;
@@ -767,7 +774,7 @@ begin
      begin
           stage.sType  := VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
           stage.stage  := VK_SHADER_STAGE_COMPUTE_BIT;
-          stage.module := TVkShader<TVkSystem_,TVkDevice_,TVkContex_>( Shader ).Handle;
+          stage.module := M;
           stage.pName  := P_char( AN );
 
           sType  := VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

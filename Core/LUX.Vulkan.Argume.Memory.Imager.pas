@@ -40,6 +40,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function GetData :TVkImaDat_; reintroduce; virtual;
        procedure SetData( const Data_:TVkImaDat_ ); reintroduce; virtual;
        function GetSize :T_VkDeviceSize; override;
+       function GetUsage :T_VkImageUsageFlags; virtual;
        function GetFormat :T_VkFormat; virtual; abstract;
        function GetImgTyp :T_VkImageType; virtual; abstract;
        function GetVewTyp :T_VkImageViewType; virtual; abstract;
@@ -57,22 +58,24 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        constructor Create; override;
        destructor Destroy; override;
        ///// P R O P E R T Y
-       property Handle :T_VkImage         read GetHandle write SetHandle;
-       property Viewer :T_VkImageView     read GetViewer                ;
-       property Layout :T_VkImageLayout   read   _Layout                ;
-       property Staged :T_VkBuffer        read   _Staged                ;
-       property StaMem :T_VkDeviceMemory  read   _StaMem                ;
-       property Data   :TVkImaDat_        read GetData   write SetData  ;
-       property Format :T_VkFormat        read GetFormat                ;
-       property ImgTyp :T_VkImageType     read GetImgTyp                ;
-       property VewTyp :T_VkImageViewType read GetVewTyp                ;
-       property CountX :Integer           read GetCountX write SetCountX;
-       property CountY :Integer           read GetCountY write SetCountY;
-       property CountZ :Integer           read GetCountZ write SetCountZ;
+       property Handle :T_VkImage           read GetHandle write SetHandle;
+       property Viewer :T_VkImageView       read GetViewer                ;
+       property Layout :T_VkImageLayout     read   _Layout                ;
+       property Staged :T_VkBuffer          read   _Staged                ;
+       property StaMem :T_VkDeviceMemory    read   _StaMem                ;
+       property Data   :TVkImaDat_          read GetData   write SetData  ;
+       property Usage  :T_VkImageUsageFlags read GetUsage                 ;
+       property Format :T_VkFormat          read GetFormat                ;
+       property ImgTyp :T_VkImageType       read GetImgTyp                ;
+       property VewTyp :T_VkImageViewType   read GetVewTyp                ;
+       property CountX :Integer             read GetCountX write SetCountX;
+       property CountY :Integer             read GetCountY write SetCountY;
+       property CountZ :Integer             read GetCountZ write SetCountZ;
        ///// M E T H O D
        procedure FreeHandle;
        function ImageRegion :T_VkBufferImageCopy;
        procedure TransitionTo( const Command_:T_VkCommandBuffer; const Layout_:T_VkImageLayout );
+       procedure AssumeLayout( const Layout_:T_VkImageLayout );
        procedure PreRun( const Command_:T_VkCommandBuffer; const DescriTyp_:T_VkDescriptorType ); override;
      end;
 
@@ -169,6 +172,16 @@ end;
 
 //------------------------------------------------------------------------------
 
+function TVkImager<TVkSystem_,TVkDevice_,TVkContex_,TValue_>.GetUsage :T_VkImageUsageFlags;
+begin
+     Result := VK_IMAGE_USAGE_SAMPLED_BIT
+            or VK_IMAGE_USAGE_STORAGE_BIT
+            or VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+            or VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+end;
+
+//------------------------------------------------------------------------------
+
 function TVkImager<TVkSystem_,TVkDevice_,TVkContex_,TValue_>.GetCountX :Integer;
 begin
      Result := 1;
@@ -225,10 +238,7 @@ begin
           arrayLayers   := 1;
           samples       := VK_SAMPLE_COUNT_1_BIT;
           tiling        := VK_IMAGE_TILING_OPTIMAL;
-          usage         := VK_IMAGE_USAGE_SAMPLED_BIT
-                        or VK_IMAGE_USAGE_STORAGE_BIT
-                        or VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                        or VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+          usage         := GetUsage;
           sharingMode   := VK_SHARING_MODE_EXCLUSIVE;
           initialLayout := VK_IMAGE_LAYOUT_UNDEFINED;
      end;
@@ -415,6 +425,14 @@ begin
                            0, nil,
                            1, @B );
 
+     _Layout := Layout_;
+end;
+
+procedure TVkImager<TVkSystem_,TVkDevice_,TVkContex_,TValue_>.AssumeLayout( const Layout_:T_VkImageLayout );
+begin
+     // 障壁を張らずに、記録しているレイアウトだけを書き換える。
+     // 描画パス（VkRenderPass）の finalLayout のように、Vulkan 側が
+     // このクラスの知らないところで遷移させた結果を教えるために使う。
      _Layout := Layout_;
 end;
 

@@ -147,7 +147,10 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Data   :TBytes     read GetData  write SetData;
        property Size   :Integer    read GetSize              ;
        ///// M E T H O D
+       procedure LoadFromStream( const Stream_:TStream );
+       procedure SaveToStream( const Stream_:TStream );
        procedure LoadFromFile( const FileName_:String );
+       procedure SaveToFile( const FileName_:String );
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkShader<TVkSystem_,TVkDevice_,TVkContex_>
@@ -384,7 +387,7 @@ begin
 
           if Assigned( glslang_default_resource )
           then resource := glslang_default_resource()
-          else resource := @GLSLANG_DEFAULT_RESOURCE;
+          else resource := @DefaultTBuiltInResource;
 
           callbacks.include_system      := VkIncludeFind;
           callbacks.include_local       := VkIncludeFind;
@@ -649,11 +652,46 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
+procedure TVkBinary<TVkSystem_,TVkDevice_,TVkContex_>.LoadFromStream( const Stream_:TStream );
+var
+   Bs :TBytes;
+   N :Integer;
+begin
+     N := Stream_.Size - Stream_.Position;
+
+     SetLength( Bs, N );
+
+     if N > 0 then Stream_.ReadBuffer( Bs[ 0 ], N );
+
+     Data := Bs;
+end;
+
+procedure TVkBinary<TVkSystem_,TVkDevice_,TVkContex_>.SaveToStream( const Stream_:TStream );
+begin
+     _Shader.Handle;  // 未コンパイルなら、ここで GLSL から SPIR-V を生成する
+
+     if Size > 0 then Stream_.WriteBuffer( _Data[ 0 ], Size );
+end;
+
+//------------------------------------------------------------------------------
+
 procedure TVkBinary<TVkSystem_,TVkDevice_,TVkContex_>.LoadFromFile( const FileName_:String );
 begin
      Data := TFile.ReadAllBytes( FileName_ );
 
      _Shader.Name := TPath.GetFileName( FileName_ );
+end;
+
+procedure TVkBinary<TVkSystem_,TVkDevice_,TVkContex_>.SaveToFile( const FileName_:String );
+var
+   S :TFileStream;
+begin
+     S := TFileStream.Create( FileName_, fmCreate );
+     try
+        SaveToStream( S );
+     finally
+        S.Free;
+     end;
 end;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkShader<TVkSystem_,TVkDevice_,TVkContex_>
@@ -870,7 +908,8 @@ function TVkShader<TVkSystem_,TVkDevice_,TVkContex_>.GetCompileOK :Boolean;
 begin
      if not _Refled then Reflect;  // 必要ならコンパイルを実行する
 
-     Result := _CompOK;
+     // コンパイル済の SPIR-V を直接与えた場合（Compile を通らない）も True とする
+     Result := _CompOK or ( _Binary.Size > 0 );
 end;
 
 function TVkShader<TVkSystem_,TVkDevice_,TVkContex_>.GetCompileLog :String;

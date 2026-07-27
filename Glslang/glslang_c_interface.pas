@@ -294,8 +294,11 @@ T_PFN_glslang_program_get_info_debug_log = function( program_:T_glslang_program_
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C O N S T A N T 】
 
-const // DefaultTBuiltInResource ( glslang/ResourceLimits/ResourceLimits.cpp )
-      GLSLANG_DEFAULT_RESOURCE :T_glslang_resource_t = (
+const // ResourceLimits.cpp の DefaultTBuiltInResource（glslang_default_resource() は
+      // glslang-default-resource-limits ライブラリ側にあり glslang.dll には無いため、
+      // 既定値をこちらに持つ。※ Delphi は識別子の大小を区別しないため、
+      // 関数 glslang_default_resource と衝突しない名前にすること。
+      DefaultTBuiltInResource :T_glslang_resource_t = (
         max_lights                                    :32;
         max_clip_planes                               :6;
         max_texture_units                             :32;
