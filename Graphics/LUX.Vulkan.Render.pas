@@ -6,8 +6,8 @@
 // ・SizeX × SizeY ピクセルの画像へシーンを描き、FireMonkey の TBitmap へ取り出す。
 //   ウィンドウもスワップチェーンも要らないので、コンソールアプリやバッチ処理から
 //   でも使える。
-// ・Camera プロパティに TVkCam を接続すると、そのカメラの属すシーンを描く。
-//   カメラは 2D（TVkCam2D）でも 3D（TVkCam3D）でもよい。
+// ・Camera プロパティに TVkCamera を接続すると、そのカメラの属すシーンを描く。
+//   カメラは 2D（TVkCamera2D）でも 3D（TVkCamera3D）でもよい。
 //
 //【構成】
 // ・色添付は TVkTarget2D（＝ COLOR_ATTACHMENT を足した TVkImager2DxBGRAxUFix8）。
@@ -32,8 +32,6 @@ uses System.UITypes,
      LUX.Vulkan.core,
      LUX.Vulkan,
      LUX.Vulkan.Stream.FMX.D2,
-     LUX.Vulkan.Graphics.Passer,
-     LUX.Vulkan.Graphics.Raster,
      LUX.Vulkan.Graphics;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
@@ -65,7 +63,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _Contex :TVkContex;
        _Queuer :TVkQueuer;
        _Passer :TVkPasser;
-       _Camera :TVkCam;
+       _Camera :TVkCamera;
        _SizeX  :Integer;
        _SizeY  :Integer;
        _Color  :TVkTarget2D;
@@ -79,8 +77,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure SetSizeX( const SizeX_:Integer ); virtual;
        function GetSizeY :Integer; virtual;
        procedure SetSizeY( const SizeY_:Integer ); virtual;
-       function GetCamera :TVkCam; virtual;
-       procedure SetCamera( const Camera_:TVkCam ); virtual;
+       function GetCamera :TVkCamera; virtual;
+       procedure SetCamera( const Camera_:TVkCamera ); virtual;
        ///// M E T H O D
        function CreateDepth :T_VkResult; virtual;
        procedure DestroDepth; virtual;
@@ -88,13 +86,13 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure DestroFramer; virtual;
        procedure ForceTarget;
      public
-       constructor Create( const Contex_:TVkContex; const Queuer_:TVkQueuer ); virtual;
+       constructor Create( const Queuer_:TVkQueuer ); virtual;
        destructor Destroy; override;
        ///// P R O P E R T Y
        property Contex :TVkContex   read   _Contex                ;
        property Queuer :TVkQueuer   read   _Queuer                ;
        property Passer :TVkPasser   read   _Passer                ;  // この描画先の描画パス
-       property Camera :TVkCam      read GetCamera write SetCamera;  // 描くカメラ（2D / 3D のどちらでもよい）
+       property Camera :TVkCamera   read GetCamera write SetCamera;  // 描くカメラ（2D / 3D のどちらでもよい）
        property SizeX  :Integer     read GetSizeX  write SetSizeX ;  // 横ピクセル数
        property SizeY  :Integer     read GetSizeY  write SetSizeY ;  // 縦ピクセル数
        property Color  :TVkTarget2D read   _Color                 ;  // 描画結果のイメージ
@@ -160,12 +158,12 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkRender.GetCamera :TVkCam;
+function TVkRender.GetCamera :TVkCamera;
 begin
      Result := _Camera;
 end;
 
-procedure TVkRender.SetCamera( const Camera_:TVkCam );
+procedure TVkRender.SetCamera( const Camera_:TVkCamera );
 begin
      _Camera := Camera_;
 end;
@@ -313,11 +311,11 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkRender.Create( const Contex_:TVkContex; const Queuer_:TVkQueuer );
+constructor TVkRender.Create( const Queuer_:TVkQueuer );
 begin
      inherited Create;
 
-     _Contex := Contex_;
+     _Contex := Queuer_.Contex;  // コンテキストはキューから導く
      _Queuer := Queuer_;
 
      _Camera := nil;
@@ -334,7 +332,7 @@ begin
 
      _Passer.ColorLast := VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;  // 描いたあとホストへ取り出す
 
-     _Color := TVkTarget2D.Create( _Contex, _Queuer );
+     _Color := TVkTarget2D.Create( _Queuer );
 
      _Stream := TVkStream2DxBGRAxUFix8_FMX.Create( _Color );
 end;
@@ -371,73 +369,14 @@ end;
 procedure TVkRender.Render;
 var
    C :T_VkCommandBuffer;
-   Cs :array [ 0..1 ] of T_VkClearValue;
-   BI :T_VkRenderPassBeginInfo;
-   V :T_VkViewport;
-   S :T_VkRect2D;
-   D :TVkDrawer;
-   B :TAlphaColorF;
 begin
      if ( _SizeX <= 0 ) or ( _SizeY <= 0 ) then Exit;
 
      ForceTarget;
 
-     ////////// CLEAR VALUES
-
-     if Assigned( _Camera ) and Assigned( _Camera.Scene ) then B := _Camera.Scene.BackColor
-                                                          else B := TAlphaColorF.Create( 0, 0, 0, 1 );
-
-     FillChar( Cs, SizeOf( Cs ), 0 );
-
-     Cs[ 0 ].color.float32[ 0 ] := B.R;
-     Cs[ 0 ].color.float32[ 1 ] := B.G;
-     Cs[ 0 ].color.float32[ 2 ] := B.B;
-     Cs[ 0 ].color.float32[ 3 ] := B.A;
-
-     Cs[ 1 ].depthStencil.depth := 1;
-
-     ////////// COMMAND
-
      C := _Queuer.BeginCommand;
 
-     FillChar( BI, SizeOf( BI ), 0 );
-     with BI do
-     begin
-          sType             := VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-          renderPass        := _Passer.Handle;
-          framebuffer       := _Framer;
-          renderArea.extent.width  := _SizeX;
-          renderArea.extent.height := _SizeY;
-          clearValueCount   := 2;
-          pClearValues      := @Cs[ 0 ];
-     end;
-
-     vkCmdBeginRenderPass( C, @BI, VK_SUBPASS_CONTENTS_INLINE );
-
-     // カメラのスクリーンの縦横比を保って収める。余白には、描画パスが描画先
-     // いっぱいに塗った背景色がそのまま残る（レターボックス）。
-     if Assigned( _Camera ) then V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, _SizeX, _SizeY )
-                            else V := VkFitViewport( _SizeX       , _SizeY       , _SizeX, _SizeY );
-
-     vkCmdSetViewport( C, 0, 1, @V );
-
-     FillChar( S, SizeOf( S ), 0 );
-     S.extent.width  := _SizeX;
-     S.extent.height := _SizeY;
-
-     vkCmdSetScissor( C, 0, 1, @S );
-
-     if Assigned( _Camera ) then
-     begin
-          D := TVkDrawer.Create( C, _Passer, _SizeX, _SizeY );
-          try
-             _Camera.Render( D );
-          finally
-             D.Free;
-          end;
-     end;
-
-     vkCmdEndRenderPass( C );
+     VkRecordScene( C, _Passer, _Framer, _SizeX, _SizeY, _Camera );
 
      _Queuer.EndCommand( C );  // 実行完了まで待機する
 

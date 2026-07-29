@@ -74,12 +74,12 @@ Note also that the source language is **never auto-detected** — GLSL and HLSL 
 
 ### ⬤ 1.3. [`/Core`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Core) ＋ [`LUX.Vulkan.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/LUX.Vulkan.pas) : The core class library
 
-Devices, queues, memory, shaders and the compute pipeline — everything that does not depend on graphics.
+From devices, queues, memory and shaders through the compute pipeline to the render pass and rasterization pipeline — every class that wraps a Vulkan handle.
 It is written entirely as generic classes; `LUX.Vulkan.pas` instantiates them with `TVkSystem` at the apex and publishes concrete aliases. **Those aliases are what you use.**
 
 ### ⬤ 1.4. [`/Graphics`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Graphics) : Scene graph ＋ rasterizer
 
-Render pass, rasterization pipeline and swapchain, plus the scene graph and two destinations built on top of them.
+The swapchain, plus the scene graph and two destinations built on top of it.
 Unlike `/Core` it is not generic — it uses the concrete types from `LUX.Vulkan.pas` directly（the same approach as `/Stream`）.
 
 ### ⬤ 1.5. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) : FMX streams
@@ -106,7 +106,9 @@ TObject
 │                              ├ TVkShaders（G）..... Shader list
 │                              ├ TVkKernels（G）..... Kernel list
 │                              ├ TVkParames（G）..... Parameter list
-│                              └ TVkStages ......... Shader stage list
+│                              ├ TVkPassers（G）..... Render pass list
+│                              ├ TVkRasters（G）..... Pipeline list
+│                              └ TVkStagers（G）..... Shader stage list
 │
 ├ TListChildr ─ TListChildr<> ─┬ TVkDevice（G）...... Physical device
 │                              ├ TVkContex（G）...... Context（logical device）
@@ -123,7 +125,11 @@ TObject
 │                              ├ TVkShader（G）...... Shader module
 │                              ├ TVkKernel（G）...... Compute pipeline
 │                              ├ TVkParame（G）...... Parameter
-│                              └ TVkStage .......... One shader stage
+│                              ├ TVkPasser（G）...... Render pass
+│                              ├ TVkRaster（G）...... Rasterization pipeline
+│                              │ ├ TVkRaster2D ..... for 2D（vertex layout ＋ push constants preset）
+│                              │ └ TVkRaster3D ..... for 3D（ditto）
+│                              └ TVkStager（G）...... One shader stage
 │
 ├ TVkMemDat（G）.................. A mapping of memory（the host-side window）
 │ ├ TVkBufDat<TValue_>（G）....... Mapping of a buffer
@@ -135,29 +141,21 @@ TObject
 │              └ TVkLibSrc（G）... GLSL source of a library
 ├ Exception ─ EVkError ........... A Vulkan error
 │
-├ TVkPasser ...................... Render pass
-├ TVkRaster ...................... Rasterization pipeline
-│ ├ TVkRaster2D .................. for 2D（vertex layout ＋ push constants preset）
-│ └ TVkRaster3D .................. for 3D（ditto）
 ├ TVkSwaper ...................... Surface ＋ swapchain
 ├ TVkDrawer ...................... State carried through one traversal
 ├ TVkRender ...................... Offscreen renderer
 │
-├ TTreeKnot<> ─ TVkObject ........ Scene graph node
+├ TTreeKnot<> ─ TVkObject ........ Scene graph node（doubles as a grouping node）
 │               ├ TVkShaper ...... A node that draws something
 │               │ ├ TVkShaper2D
 │               │ └ TVkShaper3D
 │               │   └ TVkCube3D .. Box
-│               ├ TVkCam ......... A viewpoint
-│               │ ├ TVkCam2D
-│               │ └ TVkCam3D
-│               │   ├ TVkCamPers3D  perspective
-│               │   └ TVkCamOrth3D  orthographic
-│               ├ TVkScene ....... The root of a scene
-│               │ ├ TVkScene2D
-│               │ └ TVkScene3D
-│               ├ TVkObject2D .... 2D grouping node
-│               └ TVkObject3D .... 3D grouping node
+│               ├ TVkCamera ...... A viewpoint
+│               │ ├ TVkCamera2D
+│               │ └ TVkCamera3D
+│               │   ├ TVkCameraPers3D  perspective
+│               │   └ TVkCameraOrth3D  orthographic
+│               └ TVkScener ...... The root of a scene（dimension-independent）
 │
 ├ TInterfacedObject ─ TVkStream1D_FMX<> ─ TVkStream2D_FMX<> ... FMX streams
 └ TFrame ─ TVkViewer ............. On-screen viewer
@@ -178,6 +176,7 @@ TVkSystem → TVkDevices → TVkDevice → TVkContexs → TVkContex → …
 | `TVkQueuers` ／ `TVkQueuer` ／ `TVkArgumes` ／ `TVkArgume` ／ `TVkSamplr` ／ `TVkMemory` | same name |
 | `TVkLibrars` ／ `TVkLibrar` ／ `TVkShaders` ／ `TVkShader` | same name |
 | `TVkKernels` ／ `TVkKernel` ／ `TVkParames` ／ `TVkParame` | same name |
+| `TVkPassers` ／ `TVkPasser` ／ `TVkRasters` ／ `TVkRaster` ／ `TVkStagers` ／ `TVkStager` | same name |
 | `TVkBuffer<TVkSystem,TVkDevice,TVkContex,TValue_>` | `TVkBuffer<TValue_>` |
 | `TVkImager{1,2,3}Dx{BGRAxUInt8,BGRAxUFix8,RGBAxUInt32,RGBAxSFlo32}` | same name（12 classes） |
 
@@ -204,54 +203,55 @@ TVulkan（a class; released when the program ends）
           ├ TVkLibrars
           │ └ TVkLibrar
           │   └ TVkLibSrc ─────── GLSL source
-          └ TVkShaders
-            └ TVkShader ───────── VkShaderModule
-              ├ TVkSource ─────── GLSL source
-              ├ TVkBinary ─────── SPIR-V
-              └ TVkKernels
-                └ TVkKernel ───── VkPipeline（compute）＋ VkPipelineLayout
-                  │                ＋ VkDescriptorSetLayout ＋ VkDescriptorPool ＋ VkDescriptorSet
-                  └ TVkParames
-                    └ TVkParame ─→ TVkArgume（reference only）
+          ├ TVkShaders
+          │ └ TVkShader ───────── VkShaderModule
+          │   ├ TVkSource ─────── GLSL source
+          │   ├ TVkBinary ─────── SPIR-V
+          │   └ TVkKernels
+          │     └ TVkKernel ───── VkPipeline（compute）＋ VkPipelineLayout
+          │       │                ＋ VkDescriptorSetLayout ＋ VkDescriptorPool ＋ VkDescriptorSet
+          │       └ TVkParames
+          │         └ TVkParame ─→ TVkArgume（reference only）
+          ├ TVkPassers
+          │ └ TVkPasser ───────── VkRenderPass
+          └ TVkRasters
+            └ TVkRaster ───────── VkPipeline（graphics）＋ VkPipelineLayout
+              ├ TVkStagers
+              │ └ TVkStager ────→ TVkShader（reference only）
+              └ Passer ────────→ TVkPasser（reference only）
 ```
 
-The graphics objects are **owned by the caller**. They only reference a context, so free them before the `TVkContex`.
+The screen-side objects（swapchain, destinations, scene graph）are **owned by the caller**. They only reference a context, so free them before the `TVkContex`.
 
 ```
-TVkPasser ─────────────────────── VkRenderPass
-TVkRaster ─────────────────────── VkPipeline（graphics）＋ VkPipelineLayout
-├ TVkStages
-│ └ TVkStage ──────────────────→ TVkShader（reference only）
-└ Passer ─────────────────────→ TVkPasser（reference only）
-
 TVkSwaper ─────────────────────── VkSurfaceKHR ＋ VkSwapchainKHR
                                   ＋ VkImageView[] ＋ VkFramebuffer[]
                                   ＋ depth（VkImage ＋ VkImageView ＋ VkDeviceMemory）
                                   ＋ VkSemaphore × 2
 
 TVkRender
-├ TVkPasser（owned）
-├ TVkTarget2D（owned）──────────── the color attachment; a TVkImager2DxBGRAxUFix8
+├ TVkPasser（a child of Contex; created and freed here）
+├ TVkTarget2D（ditto）──────────── the color attachment; a TVkImager2DxBGRAxUFix8
 ├ depth（VkImage ＋ VkImageView ＋ VkDeviceMemory）
 ├ VkFramebuffer
-└ Camera ────────────────────→ TVkCam（reference only）
+└ Camera ────────────────────→ TVkCamera（reference only）
 
 TVkViewer（TFrame）
 ├ the child HWND（WS_CHILD）
-├ TVkPasser（owned）
+├ TVkPasser（a child of Contex; created and freed here）
 ├ TVkSwaper（owned）
 ├ TVkRender（owned; only while Direct = False）
-└ Camera ────────────────────→ TVkCam（reference only）
+└ Camera ────────────────────→ TVkCamera（reference only）
 ```
 
 The scene graph is a tree of nodes; `Free` releases the whole subtree.
 
 ```
-TVkScene（the root; cannot have a parent）
+TVkScener（the root; cannot have a parent）
 └ TVkObject ─┬ TVkObject（nested）
              ├ TVkShaper ──→ Raster: TVkRaster（reference only）
              │   └ TVkShaper3D ── TVkVerBuf3D ＋ TVkIndBuf3D（owned）
-             └ TVkCam
+             └ TVkCamera
 ```
 
 ### ⬤ 2.3. Records, enumerations and exceptions
@@ -323,7 +323,7 @@ The "**context**" is the logical device. It owns everything below, and is the pr
 | `Extens :TArray<String>` | Extra device extensions |
 | `UsingExtens` | The ones actually enabled; `VK_KHR_swapchain` is always attempted |
 | `FamilyI :Integer` | The chosen queue family |
-| `Queuers` ／ `Argumes` ／ `Librars` ／ `Shaders` | The lists below |
+| `Queuers` ／ `Argumes` ／ `Librars` ／ `Shaders` ／ `Passers` ／ `Rasters` | The lists below |
 | `FreeHandle` | Destroy the logical device |
 
 If no family satisfies `QueFlags`, it retries with compute-only, then graphics-only — so a compute-only device keeps working.
@@ -424,11 +424,13 @@ The "**kernel**" is a compute pipeline. From the shader's reflection it internal
 | `Name :String` | The entry point |
 | `Queuer :TVkQueuer` | The queue it runs on |
 | `Parames :TVkParames` | Parameters — arguments are connected by name |
-| `GloMin*` ／ `GloSiz*` ／ `GloMax*` | The range of invocations |
+| `GloSizX` ／ `GloSizY` ／ `GloSizZ` | The number of invocations |
 | `GloDimN` | The effective dimensionality |
 | `Run` | Dispatch and wait |
 
 The number of workgroups is computed automatically from `GloSiz*` and the shader's `local_size`.
+
+> ※ `vkCmdDispatch` has **no offset argument**. Vulkan simply has no counterpart to OpenCL's `GloMin*`（global_work_offset）, so neither does this class; if you need an offset, pass one to the shader yourself, e.g. as a push constant.
 
 If the shader is not compiled（a failed GLSL compile, no SPIR-V set, …）, pipeline creation is abandoned rather than handing an empty module to the driver; see `Shader.CompileLog` for the reason. `TVkRaster` behaves the same way on the graphics side, reported through `BuildOK` ／ `BuildLog`.
 
@@ -458,11 +460,11 @@ Vulkan pipelines can be reused across "compatible" render passes, and compatibil
 
 #### ▼ `TVkRaster` ── VkPipeline（graphics）＋ VkPipelineLayout
 The "**rasterization pipeline**" — the drawing counterpart of `TVkKernel`.
-Because a graphics pipeline binds *several* shader modules, it cannot be a child of a single `TVkShader`; it takes the context instead and collects the modules as `TVkStage` children.
+Because a graphics pipeline binds *several* shader modules, it cannot be a child of a single `TVkShader`; it is a child of `TVkContex`（`Contex.Rasters`）instead and collects the modules as `TVkStager` entries.
 
 | Member | Meaning |
 |---|---|
-| `Stages :TVkStages` | The shader stages; add with `Stages.Add( Shader, Entry )` |
+| `Stagers :TVkStagers` | The shader stages; add with `Stagers.Add( Shader, Entry )` |
 | `Passer :TVkPasser` | Its render pass; if unset, the destination assigns its own on first draw |
 | `Bindins` ／ `Attribs` | Vertex bindings and attributes（Vulkan's own structures） |
 | `AddBindin` ／ `AddAttrib` | Plain helpers for appending to those |
@@ -476,7 +478,7 @@ Because a graphics pipeline binds *several* shader modules, it cannot be a child
 Changing any of these rebuilds the pipeline lazily.
 Viewport and scissor are always **dynamic**, so resizing the destination rebuilds nothing.
 
-#### ▼ `TVkStage`
+#### ▼ `TVkStager`
 One stage of a pipeline（`VkPipelineShaderStageCreateInfo`）: a `Shader`（＝ `VkShaderModule`）paired with an entry name. The stage kind `Flags` is derived mechanically from `Shader.Stage`, so there is nothing to state twice.
 
 #### ▼ `TVkSwaper` ── VkSurfaceKHR ＋ VkSwapchainKHR
@@ -515,7 +517,7 @@ Vulkan has no matrix stack, so `Draw` passes the accumulated matrix down as an a
 #### ▼ `TVkShaper`
 The base of nodes that draw something; it holds a local matrix of its own. The actual draw commands are issued by the per-dimension subclasses in `DrawMain`.
 
-#### ▼ `TVkCam`
+#### ▼ `TVkCamera`
 A viewpoint that draws nothing itself. Its pose is the product of its ancestors'（`GlobalPose`）.
 
 | Member | Meaning |
@@ -525,7 +527,7 @@ A viewpoint that draws nothing itself. Its pose is the product of its ancestors'
 | `ProjMat` | The projection matrix（supplied by subclasses）. Takes no argument |
 | `ViewMat` | The view matrix（＝ `GlobalPose.Inverse`） |
 | `Render( Drawer_ )` | Set up projection × view and draw the scene |
-| `OnScene :TDelegates` | Scene-change notification（forwarded from `TVkScene.OnChange`） |
+| `OnScene :TDelegates` | Scene-change notification（forwarded from `TVkScener.OnChange`） |
 
 Because a camera subscribes to its own scene and re-broadcasts as `OnScene`, **a viewer only ever needs a camera**.
 
@@ -538,8 +540,9 @@ V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, DstX, DstY );  // centred, as 
 
 Nothing has to fill the bars. The render pass clears the **whole destination** with the background colour and the scissor stays full, so whatever lies outside the viewport simply keeps that colour. Match the camera's aspect ratio to the destination and no bars appear at all.
 
-#### ▼ `TVkScene`
-The root of a scene: a node that cannot have a parent. It holds the Vulkan context and queue, so nodes in the scene can allocate their own resources.
+#### ▼ `TVkScener`
+The root of a scene: a node that cannot have a parent. It is dimension-independent, so both 2D and 3D use it as it is.
+`Create( Queuer_ )` takes the queue（the context follows from it）, and nodes in the scene allocate their own resources through it.
 
 | Member | Meaning |
 |---|---|
@@ -555,7 +558,7 @@ The state that lives for exactly one traversal. The destination creates it and h
 
 | Member | Meaning |
 |---|---|
-| `Comman` ／ `Passer` ／ `SizeX` ／ `SizeY` | The command buffer being recorded, the render pass, and the destination size |
+| `Comman` ／ `Passer` | The command buffer being recorded and the render pass |
 | `ProjView :TSingleM4` | Projection × view（set by the camera） |
 | `BindRaster( Raster_ )` | Bind the pipeline if needed; `False` if it is unusable |
 
@@ -567,12 +570,11 @@ The state that lives for exactly one traversal. The destination creates it and h
 
 | Class | Meaning |
 |---|---|
-| `TVkObject3D` | A grouping node with no matrix of its own |
 | `TVkShaper3D` | Holds vertex/index buffers and draws indexed; the shape comes from `BuildMesh`, and `Rebuild` regenerates it |
-| `TVkCam3D` | Camera base with `Pos` and `LookAt` |
-| `TVkCamPers3D` | Perspective; `FocusZ`（focal length）with `AngleX` ／ `AngleY`（field of view）derived from it |
-| `TVkCamOrth3D` | Orthographic; the field is the base's `SizeX` ／ `SizeY` itself |
-| `TVkScene3D` | A 3D scene |
+| `TVkCamera3D` | Camera base with `Pos` and `LookAt` |
+| `TVkCameraPers3D` | Perspective; `FocusZ`（focal length）with `AngleX` ／ `AngleY`（field of view）derived from it |
+| `TVkCameraOrth3D` | Orthographic; the field is the base's `SizeX` ／ `SizeY` itself |
+| `TVkScener` | A 3D scene |
 | `TVkRaster3D` | A pipeline with the `TVkVertex3D` layout and `TVkPush3D` push constants already declared |
 | `TVkVerBuf3D` ／ `TVkIndBuf3D` | Vertex/index buffers（`TVkBuffer` subclasses with the usage bit added） |
 | `TVkCube3D` | A box（in `/3D/…D3.Shapers.pas`）; `Size` sets its extent |
@@ -588,7 +590,7 @@ Projection matrices come from this unit's `VkProjPers3D` ／ `VkProjOrth3D`.
 
 > ※ Setting a negative `VkViewport.height` only fixes Y; the Z range still differs. The projection has to deal with it either way.
 
-`TVkCamPers3D` carries a **focal length `FocusZ`** rather than a field-of-view angle: the field is what you see looking at the screen（`SizeX` × `SizeY`）from a distance of `FocusZ`. The angles `AngleX` ／ `AngleY` are derived from it, and writing one moves `FocusZ` while keeping the screen size（i.e. it zooms）:
+`TVkCameraPers3D` carries a **focal length `FocusZ`** rather than a field-of-view angle: the field is what you see looking at the screen（`SizeX` × `SizeY`）from a distance of `FocusZ`. The angles `AngleX` ／ `AngleY` are derived from it, and writing one moves `FocusZ` while keeping the screen size（i.e. it zooms）:
 
 ```
 AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / FocusZ )
@@ -599,7 +601,7 @@ AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / F
 Only the skeleton, mirroring 3D; there are no primitives yet. Subclass `TVkShaper2D` and implement `BuildMesh` and everything else follows the 3D flow exactly.
 
 The coordinate system matches [`LUX.CG2D`](https://github.com/LUXOPHIA/LUX.CG2D)（the Skia 2D scene graph）: **Y points down**（screen coordinates）. Vulkan's clip space also has Y down, so `VkProjOrth2D( SizeX_, SizeY_ )` — unlike the 3D projections — does not flip it.
-`TVkCam2D` uses the base `TVkCam`'s `SizeX` ／ `SizeY` as they are; they give the screen's extent in world units.
+`TVkCamera2D` uses the base `TVkCamera`'s `SizeX` ／ `SizeY` as they are; they give the screen's extent in world units.
 `TVkRaster2D` turns off depth testing and face culling and turns on alpha blending.
 
 > ※ Do not mix 2D and 3D nodes in one scene: their vertex layouts and push constants differ, so the pipeline will not match.
@@ -612,7 +614,7 @@ Draws the scene into an image of a given pixel size and hands it to FireMonkey. 
 | Member | Meaning |
 |---|---|
 | `SizeX` ／ `SizeY` | Output size in pixels |
-| `Camera :TVkCam` | The camera to draw（2D or 3D） |
+| `Camera :TVkCamera` | The camera to draw（2D or 3D） |
 | `Passer :TVkPasser` | This destination's render pass |
 | `Color :TVkTarget2D` | The rendered image |
 | `Render` | Draw |
@@ -626,8 +628,8 @@ An on-screen viewer you can drop onto a form. See [§ 5.5](#-55-on-screen-viewer
 
 | Member | Meaning |
 |---|---|
-| `Attach( Contex_, Queuer_ )` | Connect the context（once） |
-| `Camera :TVkCam` | The camera; connecting subscribes to its scene |
+| `Attach( Queuer_ )` | Connect the queue（once）; the context follows from it |
+| `Camera :TVkCamera` | The camera; connecting subscribes to its scene |
 | `Direct :Boolean` | `True`: present into the child window ／ `False`: `TVkRender` into a `TBitmap` |
 | `PixelX` ／ `PixelY` | The real pixel size（DPI included） |
 | `Render` | Redraw explicitly |
@@ -681,7 +683,7 @@ Copy images between `TVkImager` and `TBitmap`. There is one concrete class per i
 #### ▼ 4.4.1. Buffer
 > `Object Pascal`
 > ```Delphi
-> _Buffer := TVkBuffer<TItem>.Create( _Contex, _Queuer );
+> _Buffer := TVkBuffer<TItem>.Create( _Queuer );
 > _Buffer.Count := 2;         // Setting the number of elements
 > _Buffer.Data.Map;           // Synchronize data with host
 > _Buffer.Data[0] := Item0;   // Writing
@@ -692,7 +694,7 @@ Copy images between `TVkImager` and `TBitmap`. There is one concrete class per i
 #### ▼ 4.4.2. Image
 > `Object Pascal`
 > ```Delphi
-> _Imager := TVkImager2DxBGRAxUFix8.Create( _Contex, _Queuer );
+> _Imager := TVkImager2DxBGRAxUFix8.Create( _Queuer );
 > _Imager.CountX := 500;      // Number of pixels in the X direction
 > _Imager.CountY := 500;      // Number of pixels in the Y direction
 > ```
@@ -789,8 +791,8 @@ A graphics-capable queue family and the swapchain extension are both the **defau
 > _ShaderF.Source.LoadFromFile( 'Shader.frag' );
 >
 > _Raster := TVkRaster3D.Create( _Contex );   // 3D: vertex layout ＋ push constants preset
-> _Raster.Stages.Add( _ShaderV );             // entry point defaults to 'main'
-> _Raster.Stages.Add( _ShaderF );
+> _Raster.Stagers.Add( _ShaderV );            // entry point defaults to 'main'
+> _Raster.Stagers.Add( _ShaderF );
 > ```
 
 Push constants are 128 bytes — exactly the minimum every Vulkan implementation must support — so moving matrices needs no descriptor set:
@@ -806,7 +808,7 @@ Textures and uniform buffers remain available: hand your own `VkDescriptorSetLay
 ### ⬤ 5.3. Scene graph
 > `Object Pascal`
 > ```Delphi
-> _Scene := TVkScene3D.Create( _Contex, _Queuer );
+> _Scene := TVkScener.Create( _Queuer );
 > _Scene.BackColor := TAlphaColorF.Create( 0.1, 0.12, 0.16, 1 );
 > _Scene.Raster    := _Raster;                  // inherited by every descendant
 >
@@ -814,7 +816,7 @@ Textures and uniform buffers remain available: hand your own `VkDescriptorSetLay
 > _Cube.Size      := TSingle3D.Create( 1, 1, 1 );
 > _Cube.LocalPose := TSingleM4.RotateY( T );
 >
-> _Camera := TVkCamPers3D.Create( _Scene );
+> _Camera := TVkCameraPers3D.Create( _Scene );
 > _Camera.SizeX  := 4;                          // a 4:3 screen ＝ the camera's aspect
 > _Camera.SizeY  := 3;                          //（independent of the destination's）
 > _Camera.AngleY := DegToRad( 40 );             // vertical FOV → sets FocusZ
@@ -824,7 +826,7 @@ Textures and uniform buffers remain available: hand your own `VkDescriptorSetLay
 ### ⬤ 5.4. Offscreen renderer
 > `Object Pascal`
 > ```Delphi
-> _Render := TVkRender.Create( _Contex, _Queuer );
+> _Render := TVkRender.Create( _Queuer );
 > _Render.SizeX  := 480;
 > _Render.SizeY  := 360;
 > _Render.Camera := _Camera;
@@ -836,7 +838,7 @@ Textures and uniform buffers remain available: hand your own `VkDescriptorSetLay
 ### ⬤ 5.5. On-screen viewer
 > `Object Pascal`
 > ```Delphi
-> Viewer.Attach( _Contex, _Queuer );
+> Viewer.Attach( _Queuer );
 > Viewer.Camera := _Camera;     // redraws itself whenever the scene changes
 > ```
 
@@ -856,7 +858,7 @@ A `Handle` property creates its Vulkan handle the first time it is read. Setters
 
 ### ⬤ 6.2. Ownership and disposal
 Objects in `/Core` belong to their parent list, and freeing a parent frees the whole subtree; freeing one individually is fine too.
-Objects in `/Graphics`（`TVkPasser` ／ `TVkRaster` ／ `TVkSwaper` ／ `TVkRender`）are **owned by the caller** — free them before the `TVkContex`.
+`TVkPasser` ／ `TVkRaster` are children of `TVkContex`（`Contex.Passers` ／ `Contex.Rasters`）and are freed with it. The screen-side objects（`TVkSwaper` ／ `TVkRender` ／ `TVkViewer` ／ `TVkScener`）are **owned by the caller** — free them before the `TVkContex`.
 Scene graph nodes belong to the tree and `Free` releases the subtree; `Raster`, however, is a reference and is never owned.
 
 ### ⬤ 6.3. Naming

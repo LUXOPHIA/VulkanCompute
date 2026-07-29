@@ -8,7 +8,9 @@ uses vk_platform, vulkan_core, vulkan_functions,
      LUX.Vulkan.core,
      LUX.Vulkan.Queuer,
      LUX.Vulkan.Argume,
-     LUX.Vulkan.Shader;
+     LUX.Vulkan.Shader,
+     LUX.Vulkan.Passer,
+     LUX.Vulkan.Raster;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
@@ -29,6 +31,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
             TVkArgumes_ = TVkArgumes<TVkSystem_,TVkDevice_,TVkContex_>;
             TVkLibrars_ = TVkLibrars<TVkSystem_,TVkDevice_,TVkContex_>;
             TVkShaders_ = TVkShaders<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkPassers_ = TVkPassers<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkRasters_ = TVkRasters<TVkSystem_,TVkDevice_,TVkContex_>;
      protected
        _Queuers  :TVkQueuers_;
        _Handle   :T_VkDevice;
@@ -38,6 +42,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _Argumes  :TVkArgumes_;
        _Librars  :TVkLibrars_;
        _Shaders  :TVkShaders_;
+       _Passers  :TVkPassers_;
+       _Rasters  :TVkRasters_;
        ///// A C C E S S O R
        function GetHandle :T_VkDevice;
        procedure SetHandle( const Handle_:T_VkDevice );
@@ -65,6 +71,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Argumes  :TVkArgumes_    read   _Argumes                  ;
        property Librars  :TVkLibrars_    read   _Librars                  ;
        property Shaders  :TVkShaders_    read   _Shaders                  ;
+       property Passers  :TVkPassers_    read   _Passers                  ;
+       property Rasters  :TVkRasters_    read   _Rasters                  ;
        ///// M E T H O D
        procedure FreeHandle;
        function AvailExtens :TArray<String>;          // 物理デバイスが対応するデバイス拡張
@@ -236,6 +244,8 @@ begin
      _Argumes := TVkArgumes_.Create( Self );
      _Librars := TVkLibrars_.Create( Self );
      _Shaders := TVkShaders_.Create( Self );
+     _Passers := TVkPassers_.Create( Self );
+     _Rasters := TVkRasters_.Create( Self );
 end;
 
 constructor TVkContex<TVkSystem_,TVkDevice_>.Create( const Device_:TVkDevice_ );
@@ -245,6 +255,8 @@ end;
 
 destructor TVkContex<TVkSystem_,TVkDevice_>.Destroy;
 begin
+     _Rasters.Free;  // パイプラインは描画パスを参照するので先に
+     _Passers.Free;
      _Shaders.Free;
      _Librars.Free;
      _Argumes.Free;

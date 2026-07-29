@@ -42,7 +42,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function DestroHandle :T_VkResult; virtual; abstract;
      public
        constructor Create; override;
-       constructor Create( const Contex_:TVkContex_; const Queuer_:TVkQueuer_ ); overload; virtual;
+       constructor Create( const Queuer_:TVkQueuer_ ); overload; virtual;
        destructor Destroy; override;
        ///// P R O P E R T Y
        property Memory :T_VkDeviceMemory read   _Memory                ;
@@ -171,9 +171,10 @@ begin
      _Queuer := nil;
 end;
 
-constructor TVkMemory<TVkSystem_,TVkDevice_,TVkContex_>.Create( const Contex_:TVkContex_; const Queuer_:TVkQueuer_ );
+constructor TVkMemory<TVkSystem_,TVkDevice_,TVkContex_>.Create( const Queuer_:TVkQueuer_ );
 begin
-     Create( Contex_ );
+     // コンテキストはキューから導く（キューはコンテキストの子なので、常に一意）
+     Create( TVkQueuer<TVkSystem_,TVkDevice_,TVkContex_>( Queuer_ ).Contex );
 
      _Queuer := Queuer_;
 end;

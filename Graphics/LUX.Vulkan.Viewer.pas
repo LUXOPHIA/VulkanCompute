@@ -39,8 +39,6 @@ uses
   LUX.Code.C,
   LUX.Vulkan.core,
   LUX.Vulkan,
-  LUX.Vulkan.Graphics.Passer,
-  LUX.Vulkan.Graphics.Raster,
   LUX.Vulkan.Graphics,
   LUX.Vulkan.Graphics.Swaper,
   LUX.Vulkan.Render;
@@ -51,7 +49,7 @@ type
   protected
     _Contex :TVkContex;
     _Queuer :TVkQueuer;
-    _Camera :TVkCam;
+    _Camera :TVkCamera;
     _Direct :Boolean;
     _Window :T_HWND;
     _Passer :TVkPasser;
@@ -59,7 +57,7 @@ type
     _Render :TVkRender;
     _Bitmap :TBitmap;
     ///// A C C E S S O R
-    procedure SetCamera( const Camera_:TVkCam );
+    procedure SetCamera( const Camera_:TVkCamera );
     function GetDirect :Boolean;
     procedure SetDirect( const Direct_:Boolean );
     function GetPixelX :Integer;
@@ -78,14 +76,14 @@ type
     constructor Create( AOwner_:TComponent ); override;
     destructor Destroy; override;
     ///// P R O P E R T Y
-    property Contex :TVkContex read _Contex ;  // Attach で受け取ったコンテキスト
-    property Queuer :TVkQueuer read _Queuer ;
-    property Camera :TVkCam    read _Camera write SetCamera;  // 描くカメラ（2D / 3D のどちらでもよい）
+    property Contex :TVkContex read   _Contex                ;  // Attach で受け取ったコンテキスト
+    property Queuer :TVkQueuer read   _Queuer                ;
+    property Camera :TVkCamera read   _Camera write SetCamera;  // 描くカメラ（2D / 3D のどちらでもよい）
     property Direct :Boolean   read GetDirect write SetDirect;  // True: 子ウィンドウへ提示 ／ False: TBitmap 経由
-    property PixelX :Integer   read GetPixelX;  // 実際の横ピクセル数（DPI 込み）
-    property PixelY :Integer   read GetPixelY;  // 　　　　縦ピクセル数
+    property PixelX :Integer   read GetPixelX                ;  // 実際の横ピクセル数（DPI 込み）
+    property PixelY :Integer   read GetPixelY                ;  // 　　　　縦ピクセル数
     ///// M E T H O D
-    procedure Attach( const Contex_:TVkContex; const Queuer_:TVkQueuer );
+    procedure Attach( const Queuer_:TVkQueuer );
     procedure Render;
   end;
 
@@ -145,7 +143,7 @@ end;
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-procedure TVkViewer.SetCamera( const Camera_:TVkCam );
+procedure TVkViewer.SetCamera( const Camera_:TVkCamera );
 begin
      if Assigned( _Camera ) then _Camera.OnScene.Del( SceneChange );
 
@@ -250,84 +248,25 @@ end;
 procedure TVkViewer.RenderDirect;
 var
    C :T_VkCommandBuffer;
-   Cs :array [ 0..1 ] of T_VkClearValue;
-   BI :T_VkRenderPassBeginInfo;
-   V :T_VkViewport;
-   S :T_VkRect2D;
-   D :TVkDrawer;
-   B :TAlphaColorF;
 begin
      ForceWindow;  if _Window = 0 then Exit;
 
      FitWindow;
 
-     if not Assigned( _Swaper ) then _Swaper := TVkSwaper.Create( _Contex, _Queuer, _Passer, _Window );
+     if not Assigned( _Swaper ) then _Swaper := TVkSwaper.Create( _Queuer, _Passer, _Window );
 
      _Swaper.Resize( PixelX, PixelY );
 
      if not _Swaper.BeginFrame( C ) then Exit;  // 最小化中など
 
-     ////////// CLEAR VALUES
-
-     if Assigned( _Camera ) and Assigned( _Camera.Scene ) then B := _Camera.Scene.BackColor
-                                                          else B := TAlphaColorF.Create( 0, 0, 0, 1 );
-
-     FillChar( Cs, SizeOf( Cs ), 0 );
-
-     Cs[ 0 ].color.float32[ 0 ] := B.R;
-     Cs[ 0 ].color.float32[ 1 ] := B.G;
-     Cs[ 0 ].color.float32[ 2 ] := B.B;
-     Cs[ 0 ].color.float32[ 3 ] := B.A;
-
-     Cs[ 1 ].depthStencil.depth := 1;
-
-     ////////// RENDER PASS
-
-     FillChar( BI, SizeOf( BI ), 0 );
-     with BI do
-     begin
-          sType                    := VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-          renderPass               := _Passer.Handle;
-          framebuffer              := _Swaper.Framer;
-          renderArea.extent.width  := _Swaper.SizeX;
-          renderArea.extent.height := _Swaper.SizeY;
-          clearValueCount          := 2;
-          pClearValues             := @Cs[ 0 ];
-     end;
-
-     vkCmdBeginRenderPass( C, @BI, VK_SUBPASS_CONTENTS_INLINE );
-
-     // カメラのスクリーンの縦横比を保って収める。余白には、描画パスが描画先
-     // いっぱいに塗った背景色がそのまま残る（レターボックス）。
-     if Assigned( _Camera ) then V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, _Swaper.SizeX, _Swaper.SizeY )
-                            else V := VkFitViewport( _Swaper.SizeX, _Swaper.SizeY, _Swaper.SizeX, _Swaper.SizeY );
-
-     vkCmdSetViewport( C, 0, 1, @V );
-
-     FillChar( S, SizeOf( S ), 0 );
-     S.extent.width  := _Swaper.SizeX;
-     S.extent.height := _Swaper.SizeY;
-
-     vkCmdSetScissor( C, 0, 1, @S );
-
-     if Assigned( _Camera ) then
-     begin
-          D := TVkDrawer.Create( C, _Passer, _Swaper.SizeX, _Swaper.SizeY );
-          try
-             _Camera.Render( D );
-          finally
-             D.Free;
-          end;
-     end;
-
-     vkCmdEndRenderPass( C );
+     VkRecordScene( C, _Passer, _Swaper.Framer, _Swaper.SizeX, _Swaper.SizeY, _Camera );
 
      _Swaper.EndFrame;  // 投入 → 提示
 end;
 
 procedure TVkViewer.RenderBitmap;
 begin
-     if not Assigned( _Render ) then _Render := TVkRender.Create( _Contex, _Queuer );
+     if not Assigned( _Render ) then _Render := TVkRender.Create( _Queuer );
 
      _Render.SizeX  := PixelX;
      _Render.SizeY  := PixelY;
@@ -413,9 +352,9 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-procedure TVkViewer.Attach( const Contex_:TVkContex; const Queuer_:TVkQueuer );
+procedure TVkViewer.Attach( const Queuer_:TVkQueuer );
 begin
-     _Contex := Contex_;
+     _Contex := Queuer_.Contex;  // コンテキストはキューから導く
      _Queuer := Queuer_;
 
      _Passer.Free;

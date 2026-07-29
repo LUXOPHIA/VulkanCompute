@@ -74,12 +74,12 @@ HLSL が必要な場合は、SPIR-V を直接出力できる [DXC](https://githu
 
 ### ⬤ 1.3. [`/Core`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Core) ＋ [`LUX.Vulkan.pas`](https://github.com/LUXOPHIA/LUX.Vulkan/blob/main/LUX.Vulkan.pas) ：クラスライブラリの核
 
-デバイス・キュー・メモリ・シェーダ・演算パイプラインまで、グラフィックスに依存しない部分です。
+デバイス・キュー・メモリ・シェーダ・演算パイプラインから、描画パス・ラスタライズパイプラインまで ―― Vulkan ハンドルを包むクラスの全部です。
 すべてジェネリッククラスとして書かれており、`LUX.Vulkan.pas` が `TVkSystem` を頂点として実体化した具象別名を公開します。**利用側が使うのはこの具象別名**です。
 
 ### ⬤ 1.4. [`/Graphics`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Graphics) ：シーングラフ ＋ ラスタライザ
 
-描画パス・ラスタライズパイプライン・スワップチェーン、その上のシーングラフと 2 種類の描画先です。
+スワップチェーンと、その上のシーングラフ、2 種類の描画先です。
 `/Core` と違いジェネリックではなく、`LUX.Vulkan.pas` の具象型を直に使います（`/Stream` と同じ方針）。
 
 ### ⬤ 1.5. [`/Stream`](https://github.com/LUXOPHIA/LUX.Vulkan/tree/main/Stream) ：FMX ストリーム
@@ -106,7 +106,9 @@ TObject
 │                              ├ TVkShaders（G）..... シェーダリスト
 │                              ├ TVkKernels（G）..... カーネルリスト
 │                              ├ TVkParames（G）..... 仮引数リスト
-│                              └ TVkStages ......... シェーダ段リスト
+│                              ├ TVkPassers（G）..... 描画パスリスト
+│                              ├ TVkRasters（G）..... パイプラインリスト
+│                              └ TVkStagers（G）..... シェーダ段リスト
 │
 ├ TListChildr ─ TListChildr<> ─┬ TVkDevice（G）...... 物理デバイス
 │                              ├ TVkContex（G）...... コンテキスト（論理デバイス）
@@ -123,7 +125,11 @@ TObject
 │                              ├ TVkShader（G）...... シェーダモジュール
 │                              ├ TVkKernel（G）...... 演算パイプライン
 │                              ├ TVkParame（G）...... 仮引数
-│                              └ TVkStage .......... シェーダの 1 段
+│                              ├ TVkPasser（G）...... 描画パス
+│                              ├ TVkRaster（G）...... ラスタライズパイプライン
+│                              │ ├ TVkRaster2D ..... ２Ｄ用（頂点配置と押込定数を設定済み）
+│                              │ └ TVkRaster3D ..... ３Ｄ用（同）
+│                              └ TVkStager（G）...... シェーダの 1 段
 │
 ├ TVkMemDat（G）.................. メモリのマップ（ホスト側の窓）
 │ ├ TVkBufDat<TValue_>（G）....... バッファのマップ
@@ -135,29 +141,21 @@ TObject
 │              └ TVkLibSrc（G）... ライブラリの GLSL ソース
 ├ Exception ─ EVkError ........... Vulkan のエラー
 │
-├ TVkPasser ...................... 描画パス
-├ TVkRaster ...................... ラスタライズパイプライン
-│ ├ TVkRaster2D .................. ２Ｄ用（頂点配置と押込定数を設定済み）
-│ └ TVkRaster3D .................. ３Ｄ用（同）
 ├ TVkSwaper ...................... 表示面 ＋ スワップチェーン
 ├ TVkDrawer ...................... 描画 1 回分の状態
 ├ TVkRender ...................... オフラインレンダラ
 │
-├ TTreeKnot<> ─ TVkObject ........ シーングラフのノード
+├ TTreeKnot<> ─ TVkObject ........ シーングラフのノード（中間節としても使える）
 │               ├ TVkShaper ...... 描画の実体を持つノード
 │               │ ├ TVkShaper2D
 │               │ └ TVkShaper3D
 │               │   └ TVkCube3D .. 直方体
-│               ├ TVkCam ......... 視点
-│               │ ├ TVkCam2D
-│               │ └ TVkCam3D
-│               │   ├ TVkCamPers3D  透視投影
-│               │   └ TVkCamOrth3D  平行投影
-│               ├ TVkScene ....... シーンの根
-│               │ ├ TVkScene2D
-│               │ └ TVkScene3D
-│               ├ TVkObject2D .... ２Ｄの中間節
-│               └ TVkObject3D .... ３Ｄの中間節
+│               ├ TVkCamera ...... 視点
+│               │ ├ TVkCamera2D
+│               │ └ TVkCamera3D
+│               │   ├ TVkCameraPers3D  透視投影
+│               │   └ TVkCameraOrth3D  平行投影
+│               └ TVkScener ...... シーンの根（次元共通）
 │
 ├ TInterfacedObject ─ TVkStream1D_FMX<> ─ TVkStream2D_FMX<> ... FMX ストリーム
 └ TFrame ─ TVkViewer ............. 表示窓
@@ -178,6 +176,7 @@ TVkSystem → TVkDevices → TVkDevice → TVkContexs → TVkContex → …
 | `TVkQueuers` ／ `TVkQueuer` ／ `TVkArgumes` ／ `TVkArgume` ／ `TVkSamplr` ／ `TVkMemory` | 同名 |
 | `TVkLibrars` ／ `TVkLibrar` ／ `TVkShaders` ／ `TVkShader` | 同名 |
 | `TVkKernels` ／ `TVkKernel` ／ `TVkParames` ／ `TVkParame` | 同名 |
+| `TVkPassers` ／ `TVkPasser` ／ `TVkRasters` ／ `TVkRaster` ／ `TVkStagers` ／ `TVkStager` | 同名 |
 | `TVkBuffer<TVkSystem,TVkDevice,TVkContex,TValue_>` | `TVkBuffer<TValue_>` |
 | `TVkImager{1,2,3}Dx{BGRAxUInt8,BGRAxUFix8,RGBAxUInt32,RGBAxSFlo32}` | 同名（計 12 種） |
 
@@ -204,54 +203,55 @@ TVulkan（クラス。プログラム終了時に解放）
           ├ TVkLibrars
           │ └ TVkLibrar
           │   └ TVkLibSrc ─────── GLSL ソース
-          └ TVkShaders
-            └ TVkShader ───────── VkShaderModule
-              ├ TVkSource ─────── GLSL ソース
-              ├ TVkBinary ─────── SPIR-V
-              └ TVkKernels
-                └ TVkKernel ───── VkPipeline（compute）＋ VkPipelineLayout
-                  │                ＋ VkDescriptorSetLayout ＋ VkDescriptorPool ＋ VkDescriptorSet
-                  └ TVkParames
-                    └ TVkParame ─→ TVkArgume（参照のみ）
+          ├ TVkShaders
+          │ └ TVkShader ───────── VkShaderModule
+          │   ├ TVkSource ─────── GLSL ソース
+          │   ├ TVkBinary ─────── SPIR-V
+          │   └ TVkKernels
+          │     └ TVkKernel ───── VkPipeline（compute）＋ VkPipelineLayout
+          │       │                ＋ VkDescriptorSetLayout ＋ VkDescriptorPool ＋ VkDescriptorSet
+          │       └ TVkParames
+          │         └ TVkParame ─→ TVkArgume（参照のみ）
+          ├ TVkPassers
+          │ └ TVkPasser ───────── VkRenderPass
+          └ TVkRasters
+            └ TVkRaster ───────── VkPipeline（graphics）＋ VkPipelineLayout
+              ├ TVkStagers
+              │ └ TVkStager ────→ TVkShader（参照のみ）
+              └ Passer ────────→ TVkPasser（参照のみ）
 ```
 
-グラフィックス側は**呼び出し側の所有物**です。コンテキストを参照するだけなので、`TVkContex` より先に解放してください。
+画面側（スワップチェーン・描画先・シーングラフ）は**呼び出し側の所有物**です。コンテキストを参照するだけなので、`TVkContex` より先に解放してください。
 
 ```
-TVkPasser ─────────────────────── VkRenderPass
-TVkRaster ─────────────────────── VkPipeline（graphics）＋ VkPipelineLayout
-├ TVkStages
-│ └ TVkStage ──────────────────→ TVkShader（参照のみ）
-└ Passer ─────────────────────→ TVkPasser（参照のみ）
-
 TVkSwaper ─────────────────────── VkSurfaceKHR ＋ VkSwapchainKHR
                                   ＋ VkImageView[] ＋ VkFramebuffer[]
                                   ＋ 深度（VkImage ＋ VkImageView ＋ VkDeviceMemory）
                                   ＋ VkSemaphore × 2
 
 TVkRender
-├ TVkPasser（所有）
-├ TVkTarget2D（所有）───────────── 色添付。TVkImager2DxBGRAxUFix8 の派生
+├ TVkPasser（Contex の子。生成と解放は担う）
+├ TVkTarget2D（同）─────────────── 色添付。TVkImager2DxBGRAxUFix8 の派生
 ├ 深度（VkImage ＋ VkImageView ＋ VkDeviceMemory）
 ├ VkFramebuffer
-└ Camera ────────────────────→ TVkCam（参照のみ）
+└ Camera ────────────────────→ TVkCamera（参照のみ）
 
 TVkViewer（TFrame）
 ├ 子 HWND（WS_CHILD）
-├ TVkPasser（所有）
+├ TVkPasser（Contex の子。生成と解放は担う）
 ├ TVkSwaper（所有）
 ├ TVkRender（所有。Direct = False のときだけ生成）
-└ Camera ────────────────────→ TVkCam（参照のみ）
+└ Camera ────────────────────→ TVkCamera（参照のみ）
 ```
 
 シーングラフはノードの木です。`Free` で部分木ごと解放されます。
 
 ```
-TVkScene（根。親には所属できない）
+TVkScener（根。親には所属できない）
 └ TVkObject ─┬ TVkObject（入れ子）
              ├ TVkShaper ──→ Raster：TVkRaster（参照のみ）
              │   └ TVkShaper3D ── TVkVerBuf3D ＋ TVkIndBuf3D（所有）
-             └ TVkCam
+             └ TVkCamera
 ```
 
 ### ⬤ 2.3. レコード・列挙・例外
@@ -323,7 +323,7 @@ TVkScene（根。親には所属できない）
 | `Extens :TArray<String>` | 追加で有効化するデバイス拡張 |
 | `UsingExtens` | 実際に有効化する拡張。`VK_KHR_swapchain` は常に試みる |
 | `FamilyI :Integer` | 選ばれたキューファミリの番号 |
-| `Queuers` ／ `Argumes` ／ `Librars` ／ `Shaders` | 配下の各リスト |
+| `Queuers` ／ `Argumes` ／ `Librars` ／ `Shaders` ／ `Passers` ／ `Rasters` | 配下の各リスト |
 | `FreeHandle` | 論理デバイスを破棄する |
 
 `QueFlags` を満たすファミリが無ければ、演算のみ → 描画のみ、の順に能力を落として探し直します。したがって演算専用デバイスでもそのまま動きます。
@@ -424,11 +424,13 @@ SPIR-V バイナリ。`LoadFromFile` ／ `SaveToFile` ／ `LoadFromStream` ／ `
 | `Name :String` | 入口関数の名前 |
 | `Queuer :TVkQueuer` | 実行に使うキュー |
 | `Parames :TVkParames` | 仮引数（名前で実引数を接続する） |
-| `GloMin*` ／ `GloSiz*` ／ `GloMax*` | 呼び出し回数の範囲 |
+| `GloSizX` ／ `GloSizY` ／ `GloSizZ` | 呼び出し回数 |
 | `GloDimN` | 実質的な次元数 |
 | `Run` | ディスパッチして完了まで待つ |
 
 ワークグループ数は `GloSiz*` とシェーダの `local_size` から自動的に計算されます。
+
+> ※ `vkCmdDispatch` には**オフセット引数がありません**。OpenCL の `GloMin*`（global_work_offset）に相当する機能は Vulkan には無いため、本クラスも持ちません。オフセットが要る場合は、押込定数などでシェーダへ渡してください。
 
 シェーダが未コンパイル（GLSL のコンパイル失敗、SPIR-V 未設定など）なら、空のモジュールをドライバへ渡さずにパイプラインの生成を打ち切ります。原因は `Shader.CompileLog` を参照してください。描画側の `TVkRaster` も `BuildOK` ／ `BuildLog` で同じように振る舞います。
 
@@ -458,11 +460,11 @@ Vulkan のパイプラインは「互換な」描画パスとの間で使い回�
 
 #### ▼ `TVkRaster` ── VkPipeline（graphics）＋ VkPipelineLayout
 「**ラスタライズパイプライン**」です。`TVkKernel` の描画版にあたります。
-描画パイプラインは*複数*のシェーダモジュールを束ねるため、単一の `TVkShader` の子には置けません。代わりにコンテキストを受け取り、モジュールを `TVkStage` の子として集めます。
+描画パイプラインは*複数*のシェーダモジュールを束ねるため、単一の `TVkShader` の子には置けません。代わりに `TVkContex` の子（`Contex.Rasters`）となり、モジュールを `TVkStager` として集めます。
 
 | メンバ | 意味 |
 |---|---|
-| `Stages :TVkStages` | シェーダの段。`Stages.Add( Shader, Entry )` で追加 |
+| `Stagers :TVkStagers` | シェーダの段。`Stagers.Add( Shader, Entry )` で追加 |
 | `Passer :TVkPasser` | 属する描画パス。未設定なら描画側が最初の描画時に代入する |
 | `Bindins` ／ `Attribs` | 頂点バッファの束ね方と頂点属性の配置（Vulkan の構造体そのまま） |
 | `AddBindin` ／ `AddAttrib` | 上記への素直な追加 |
@@ -476,7 +478,7 @@ Vulkan のパイプラインは「互換な」描画パスとの間で使い回�
 いずれの属性も、変更するとパイプラインを遅延して作り直します。
 視野（viewport）と切り抜き（scissor）は常に**動的状態**なので、描画先の大きさが変わっても作り直しは起こりません。
 
-#### ▼ `TVkStage`
+#### ▼ `TVkStager`
 パイプラインの 1 段（`VkPipelineShaderStageCreateInfo`）です。`Shader`（＝ `VkShaderModule`）と入口名 `Entry` の組を持ちます。段の種別 `Flags` は `Shader.Stage` から機械的に導かれるので、二重に指定する必要はありません。
 
 #### ▼ `TVkSwaper` ── VkSurfaceKHR ＋ VkSwapchainKHR
@@ -515,7 +517,7 @@ Vulkan には行列スタックが無いので、`Draw` は累積した行列を
 #### ▼ `TVkShaper`
 描画の実体を持つノードの基底です。局所行列を自前で持ちます。実際の描画コマンドは、次元ごとの派生が `DrawMain` で発行します。
 
-#### ▼ `TVkCam`
+#### ▼ `TVkCamera`
 視点のノードです。自分では何も描きません。姿勢は先祖の積（`GlobalPose`）で決まります。
 
 | メンバ | 意味 |
@@ -525,7 +527,7 @@ Vulkan には行列スタックが無いので、`Draw` は累積した行列を
 | `ProjMat` | 射影行列（派生が与える）。引数を取らない |
 | `ViewMat` | 視野行列（＝ `GlobalPose.Inverse`） |
 | `Render( Drawer_ )` | 射影 × 視野を用意してシーンを描く |
-| `OnScene :TDelegates` | シーンの変化の通知（`TVkScene.OnChange` の転送） |
+| `OnScene :TDelegates` | シーンの変化の通知（`TVkScener.OnChange` の転送） |
 
 属すシーンの `OnChange` を購読して `OnScene` として転送するため、**ビューアはカメラだけを受け取れば済みます**。
 
@@ -538,8 +540,9 @@ V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, DstX, DstY );  // 中央へ最
 
 余白の塗り分けは要りません。描画パスは**描画先いっぱい**を背景色で塗り、シザーもそのままなので、ビューポートの外側には背景色が残ります。カメラの縦横比が描画先と一致していれば余白は生じません。
 
-#### ▼ `TVkScene`
-シーンの根です。ノードでありながら親には所属できません。Vulkan のコンテキストとキューを持ち、シーンに属すノードはこれを通して自分の資源を確保します。
+#### ▼ `TVkScener`
+シーンの根です。ノードでありながら親には所属できません。次元（2D ／ 3D）に依存しないので、そのまま両方に使います。
+`Create( Queuer_ )` でキューを受け取り（コンテキストはキューから定まる）、シーンに属すノードはこれを通して自分の資源を確保します。
 
 | メンバ | 意味 |
 |---|---|
@@ -555,7 +558,7 @@ V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, DstX, DstY );  // 中央へ最
 
 | メンバ | 意味 |
 |---|---|
-| `Comman` ／ `Passer` ／ `SizeX` ／ `SizeY` | 記録中のコマンドバッファ、描画パス、描画先の大きさ |
+| `Comman` ／ `Passer` | 記録中のコマンドバッファと描画パス |
 | `ProjView :TSingleM4` | 射影行列 × 視野行列（カメラが設定する） |
 | `BindRaster( Raster_ )` | 必要ならパイプラインを束ね直す。使えなければ `False` |
 
@@ -567,12 +570,10 @@ V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, DstX, DstY );  // 中央へ最
 
 | クラス | 意味 |
 |---|---|
-| `TVkObject3D` | 行列を持たない中間節（グループ） |
 | `TVkShaper3D` | 頂点／添字バッファを持ち、添字つきで描画する。形は `BuildMesh` で与える。`Rebuild` で作り直す |
-| `TVkCam3D` | `Pos` と `LookAt` を持つカメラの基底 |
-| `TVkCamPers3D` | 透視投影。`FocusZ`（焦点距離）と、それに連動する `AngleX` ／ `AngleY`（画角） |
-| `TVkCamOrth3D` | 平行投影。視野は基底の `SizeX` ／ `SizeY` そのもの |
-| `TVkScene3D` | ３Ｄのシーン |
+| `TVkCamera3D` | `Pos` と `LookAt` を持つカメラの基底 |
+| `TVkCameraPers3D` | 透視投影。`FocusZ`（焦点距離）と、それに連動する `AngleX` ／ `AngleY`（画角） |
+| `TVkCameraOrth3D` | 平行投影。視野は基底の `SizeX` ／ `SizeY` そのもの |
 | `TVkRaster3D` | `TVkVertex3D` の配置と `TVkPush3D` の押込定数を宣言済みのパイプライン |
 | `TVkVerBuf3D` ／ `TVkIndBuf3D` | 頂点／添字バッファ（用途フラグを足した `TVkBuffer` の派生） |
 | `TVkCube3D` | 直方体（`/3D/…D3.Shapers.pas`）。`Size` で寸法を与える |
@@ -588,7 +589,7 @@ V := VkFitViewport( _Camera.SizeX, _Camera.SizeY, DstX, DstY );  // 中央へ最
 
 > ※ 「`VkViewport.height` に負の値を入れる」やり方では Ｙ の向きしか直せず、Ｚ の範囲は残ります。どのみち射影で面倒を見る必要があります。
 
-`TVkCamPers3D` は視野角ではなく**焦点距離 `FocusZ`** を持ちます。スクリーン（`SizeX` × `SizeY`）を距離 `FocusZ` から覗いたときの見え方が視野です。画角 `AngleX` ／ `AngleY` は `FocusZ` から導かれ、書き込むとスクリーンの大きさを保ったまま `FocusZ` が動きます（＝ ズーム）。
+`TVkCameraPers3D` は視野角ではなく**焦点距離 `FocusZ`** を持ちます。スクリーン（`SizeX` × `SizeY`）を距離 `FocusZ` から覗いたときの見え方が視野です。画角 `AngleX` ／ `AngleY` は `FocusZ` から導かれ、書き込むとスクリーンの大きさを保ったまま `FocusZ` が動きます（＝ ズーム）。
 
 ```
 AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / FocusZ )
@@ -599,7 +600,7 @@ AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / F
 ３Ｄと対称な骨組みだけを用意した段階であり、図形プリミティブはまだありません。`TVkShaper2D` を継承して `BuildMesh` を実装すれば、３Ｄとまったく同じ流れで描けます。
 
 座標系は [`LUX.CG2D`](https://github.com/LUXOPHIA/LUX.CG2D)（Skia の２Ｄシーングラフ）と揃えて**Ｙ下向き**（画面座標系）です。Vulkan のクリップ空間も Ｙ下向きなので、射影行列 `VkProjOrth2D( SizeX_, SizeY_ )` は３Ｄと違って Ｙ を反転しません。
-`TVkCam2D` の `SizeX` ／ `SizeY` は基底 `TVkCam` のものをそのまま使い、スクリーンの広さ（ワールド単位）を表します。
+`TVkCamera2D` の `SizeX` ／ `SizeY` は基底 `TVkCamera` のものをそのまま使い、スクリーンの広さ（ワールド単位）を表します。
 `TVkRaster2D` は深度テストと面の間引きを切り、半透明合成を有効にしてあります。
 
 > ※ 2D と 3D のノードを同じシーンに混在させないでください。頂点の配置と押込定数の形が異なるため、パイプラインが噛み合いません。
@@ -612,7 +613,7 @@ AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / F
 | メンバ | 意味 |
 |---|---|
 | `SizeX` ／ `SizeY` | 出力の画素数 |
-| `Camera :TVkCam` | 描くカメラ（２Ｄでも３Ｄでもよい） |
+| `Camera :TVkCamera` | 描くカメラ（２Ｄでも３Ｄでもよい） |
 | `Passer :TVkPasser` | この描画先の描画パス |
 | `Color :TVkTarget2D` | 描画結果のイメージ |
 | `Render` | 描く |
@@ -626,8 +627,8 @@ AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / F
 
 | メンバ | 意味 |
 |---|---|
-| `Attach( Contex_, Queuer_ )` | コンテキストを接続する（最初に 1 回） |
-| `Camera :TVkCam` | 描くカメラ。接続するとシーンの変化を購読する |
+| `Attach( Queuer_ )` | キューを接続する（最初に 1 回）。コンテキストも定まる |
+| `Camera :TVkCamera` | 描くカメラ。接続するとシーンの変化を購読する |
 | `Direct :Boolean` | `True`：子ウィンドウへ提示 ／ `False`：`TVkRender` 経由で `TBitmap` |
 | `PixelX` ／ `PixelY` | 実際の画素数（DPI 込み） |
 | `Render` | 明示的に描き直す |
@@ -681,7 +682,7 @@ AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / F
 #### ▼ 4.4.1. バッファ
 > `Object Pascal`
 > ```Delphi
-> _Buffer := TVkBuffer<TItem>.Create( _Contex, _Queuer );
+> _Buffer := TVkBuffer<TItem>.Create( _Queuer );
 > _Buffer.Count := 2;         // 要素数の設定
 > _Buffer.Data.Map;           // ホストとデータを同期
 > _Buffer.Data[0] := Item0;   // 書き込み
@@ -692,7 +693,7 @@ AngleX = 2 * ArcTan( SizeX / 2 / FocusZ )     AngleY = 2 * ArcTan( SizeY / 2 / F
 #### ▼ 4.4.2. イメージ
 > `Object Pascal`
 > ```Delphi
-> _Imager := TVkImager2DxBGRAxUFix8.Create( _Contex, _Queuer );
+> _Imager := TVkImager2DxBGRAxUFix8.Create( _Queuer );
 > _Imager.CountX := 500;      // Ｘ方向の画素数
 > _Imager.CountY := 500;      // Ｙ方向の画素数
 > ```
@@ -789,14 +790,14 @@ SPIR-V は直接読み書きもできるので、事前にコンパイルして 
 > _ShaderF.Source.LoadFromFile( 'Shader.frag' );
 >
 > _Raster := TVkRaster3D.Create( _Contex );   // ３Ｄ用：頂点配置と押込定数は設定済み
-> _Raster.Stages.Add( _ShaderV );             // 入口名の既定は 'main'
-> _Raster.Stages.Add( _ShaderF );
+> _Raster.Stagers.Add( _ShaderV );            // 入口名の既定は 'main'
+> _Raster.Stagers.Add( _ShaderF );
 > ```
 
 ### ⬤ 5.3. シーングラフ
 > `Object Pascal`
 > ```Delphi
-> _Scene := TVkScene3D.Create( _Contex, _Queuer );
+> _Scene := TVkScener.Create( _Queuer );
 > _Scene.BackColor := TAlphaColorF.Create( 0.1, 0.12, 0.16, 1 );
 > _Scene.Raster    := _Raster;                  // 子孫すべてに継承される
 >
@@ -804,7 +805,7 @@ SPIR-V は直接読み書きもできるので、事前にコンパイルして 
 > _Cube.Size      := TSingle3D.Create( 1, 1, 1 );
 > _Cube.LocalPose := TSingleM4.RotateY( T );
 >
-> _Camera := TVkCamPers3D.Create( _Scene );
+> _Camera := TVkCameraPers3D.Create( _Scene );
 > _Camera.SizeX  := 4;                          // スクリーン 4:3 ＝ カメラの縦横比
 > _Camera.SizeY  := 3;                          //（描画先の縦横比とは独立）
 > _Camera.AngleY := DegToRad( 40 );             // 縦の画角 → FocusZ が決まる
@@ -814,7 +815,7 @@ SPIR-V は直接読み書きもできるので、事前にコンパイルして 
 ### ⬤ 5.4. オフラインレンダラ
 > `Object Pascal`
 > ```Delphi
-> _Render := TVkRender.Create( _Contex, _Queuer );
+> _Render := TVkRender.Create( _Queuer );
 > _Render.SizeX  := 480;
 > _Render.SizeY  := 360;
 > _Render.Camera := _Camera;
@@ -826,7 +827,7 @@ SPIR-V は直接読み書きもできるので、事前にコンパイルして 
 ### ⬤ 5.5. 表示窓
 > `Object Pascal`
 > ```Delphi
-> Viewer.Attach( _Contex, _Queuer );
+> Viewer.Attach( _Queuer );
 > Viewer.Camera := _Camera;     // シーンが変わるたびに自動で描き直す
 > ```
 
@@ -846,7 +847,7 @@ FireMonkey はフォーム全体をひとつの `HWND` へ描くため、Vulkan 
 
 ### ⬤ 6.2. 所有と解放
 `/Core` のオブジェクトは親のリストに所属し、親を `Free` すると部分木ごと解放されます。個別に `Free` することもできます。
-`/Graphics` のオブジェクト（`TVkPasser` ／ `TVkRaster` ／ `TVkSwaper` ／ `TVkRender`）は**呼び出し側の所有物**です。`TVkContex` より先に解放してください。
+`TVkPasser` ／ `TVkRaster` は `TVkContex` の子（`Contex.Passers` ／ `Contex.Rasters`）であり、コンテキストと共に解放されます。画面側の物（`TVkSwaper` ／ `TVkRender` ／ `TVkViewer` ／ `TVkScener`）は**呼び出し側の所有物**です。`TVkContex` より先に解放してください。
 シーングラフのノードは木に所属し、`Free` で部分木ごと解放されます。ただし `Raster` は参照であり所有しません。
 
 ### ⬤ 6.3. 命名

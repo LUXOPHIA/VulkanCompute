@@ -34,18 +34,14 @@ uses System.Math,
      LUX.Code.C,
      LUX.Vulkan.core,
      LUX.Vulkan,
-     LUX.Vulkan.Graphics.Passer,
-     LUX.Vulkan.Graphics.Raster,
      LUX.Vulkan.Graphics;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
-     TVkObject3D  = class;
-       TVkShaper3D = class;
-       TVkCam3D    = class;
-         TVkCamPers3D = class;
-         TVkCamOrth3D = class;
-       TVkScene3D  = class;
+     TVkShaper3D = class;
+     TVkCamera3D = class;
+       TVkCameraPers3D = class;
+       TVkCameraOrth3D = class;
 
      TVkRaster3D  = class;
      TVkVerBuf3D  = class;
@@ -111,21 +107,12 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRaster3D
 
      // ３Ｄ用のラスタライズパイプライン。TVkVertex3D の配置と TVkPush3D の押込定数を
-     // あらかじめ宣言してある。段（Stages）だけを足せば使える。
+     // あらかじめ宣言してある。段（Stagers）だけを足せば使える。
      TVkRaster3D = class( TVkRaster )
      private
      protected
      public
        constructor Create( const Contex_:TVkContex ); override;
-     end;
-
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkObject3D
-
-     // ３Ｄノード。行列を持たない中間節（グループ）として使える。
-     TVkObject3D = class( TVkObject )
-     private
-     protected
-     public
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkShaper3D
@@ -156,9 +143,9 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure Rebuild;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCam3D
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamera3D
 
-     TVkCam3D = class( TVkCam )
+     TVkCamera3D = class( TVkCamera )
      private
      protected
        ///// A C C E S S O R
@@ -173,13 +160,13 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure LookAt( const EyeP_,TarP_,UppV_:TSingle3D ); overload;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamPers3D
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCameraPers3D
 
      // 透視投影のカメラ。
      // スクリーン（SizeX × SizeY）を焦点距離 FocusZ の位置に置いた「レンズ」として
      // 扱う。画角 AngleX / AngleY はそこから導かれる量であり、代入すると
      // スクリーンの大きさは保ったまま FocusZ のほうが動く（＝ ズーム）。
-     TVkCamPers3D = class( TVkCam3D )
+     TVkCameraPers3D = class( TVkCamera3D )
      private
      protected
        _FocusZ :Single;
@@ -200,22 +187,14 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property AngleY :Single read GetAngleY write SetAngleY;  // 縦方向の画角（ラジアン）
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamOrth3D
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCameraOrth3D
 
      // 平行投影のカメラ。視野はスクリーン（SizeX × SizeY）そのもの。
-     TVkCamOrth3D = class( TVkCam3D )
+     TVkCameraOrth3D = class( TVkCamera3D )
      private
      protected
        ///// M E T H O D
        function GetProjMat :TSingleM4; override;
-     public
-     end;
-
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScene3D
-
-     TVkScene3D = class( TVkScene )
-     private
-     protected
      public
      end;
 
@@ -331,8 +310,6 @@ begin
      PushSize := SizeOf( TVkPush3D );
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkObject3D
-
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkShaper3D
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
@@ -360,16 +337,14 @@ end;
 
 procedure TVkShaper3D.ForceMesh;
 var
-   C :TVkContex;
    Q :TVkQueuer;
 begin
      if _MeshOK then Exit;
 
-     C := Contex;  if not Assigned( C ) then Exit;  // シーンに属していない
-     Q := Queuer;
+     Q := Queuer;  if not Assigned( Q ) then Exit;  // シーンに属していない
 
-     if not Assigned( _Verters ) then _Verters := TVkVerBuf3D.Create( C, Q );
-     if not Assigned( _Indexes ) then _Indexes := TVkIndBuf3D.Create( C, Q );
+     if not Assigned( _Verters ) then _Verters := TVkVerBuf3D.Create( Q );
+     if not Assigned( _Indexes ) then _Indexes := TVkIndBuf3D.Create( Q );
 
      _MeshOK := True;  // BuildMesh の中から再入しないよう、先に立てる
 
@@ -434,18 +409,18 @@ begin
      Changed;
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCam3D
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamera3D
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkCam3D.GetPos :TSingle3D;
+function TVkCamera3D.GetPos :TSingle3D;
 begin
      Result := _LocalPose.AxisP;
 end;
 
-procedure TVkCam3D.SetPos( const Pos_:TSingle3D );
+procedure TVkCamera3D.SetPos( const Pos_:TSingle3D );
 begin
      _LocalPose.AxisP := Pos_;
 
@@ -456,35 +431,35 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-procedure TVkCam3D.LookAt( const TarP_:TSingle3D );
+procedure TVkCamera3D.LookAt( const TarP_:TSingle3D );
 begin
      LookAt( Pos, TarP_, TSingle3D.Create( 0, 1, 0 ) );
 end;
 
-procedure TVkCam3D.LookAt( const EyeP_,TarP_:TSingle3D );
+procedure TVkCamera3D.LookAt( const EyeP_,TarP_:TSingle3D );
 begin
      LookAt( EyeP_, TarP_, TSingle3D.Create( 0, 1, 0 ) );
 end;
 
-procedure TVkCam3D.LookAt( const EyeP_,TarP_,UppV_:TSingle3D );
+procedure TVkCamera3D.LookAt( const EyeP_,TarP_,UppV_:TSingle3D );
 begin
      // TSingleM4.LookAt は視野行列（ワールド → カメラ）を返すので、
      // ノードの姿勢（カメラ → ワールド）へ逆にして代入する
      LocalPose := TSingleM4.LookAt( EyeP_, TarP_, UppV_ ).Inverse;
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamPers3D
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCameraPers3D
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkCamPers3D.GetFocusZ :Single;
+function TVkCameraPers3D.GetFocusZ :Single;
 begin
      Result := _FocusZ;
 end;
 
-procedure TVkCamPers3D.SetFocusZ( const FocusZ_:Single );
+procedure TVkCameraPers3D.SetFocusZ( const FocusZ_:Single );
 begin
      _FocusZ := FocusZ_;
 
@@ -493,54 +468,52 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkCamPers3D.GetAngleX :Single;
+function TVkCameraPers3D.GetAngleX :Single;
 begin
      Result := 2 * ArcTan( SizeX / 2 / _FocusZ );
 end;
 
-procedure TVkCamPers3D.SetAngleX( const AngleX_:Single );
+procedure TVkCameraPers3D.SetAngleX( const AngleX_:Single );
 begin
      FocusZ := SizeX / 2 / Tan( AngleX_ / 2 );  // スクリーンは動かさず、レンズを繰り出す
 end;
 
-function TVkCamPers3D.GetAngleY :Single;
+function TVkCameraPers3D.GetAngleY :Single;
 begin
      Result := 2 * ArcTan( SizeY / 2 / _FocusZ );
 end;
 
-procedure TVkCamPers3D.SetAngleY( const AngleY_:Single );
+procedure TVkCameraPers3D.SetAngleY( const AngleY_:Single );
 begin
      FocusZ := SizeY / 2 / Tan( AngleY_ / 2 );
 end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkCamPers3D.GetProjMat :TSingleM4;
+function TVkCameraPers3D.GetProjMat :TSingleM4;
 begin
      Result := VkProjPers3D( SizeX, SizeY, _FocusZ, NeaZ, FarZ );
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkCamPers3D.Create;
+constructor TVkCameraPers3D.Create;
 begin
      inherited;
 
      _FocusZ := 1 / Tan( DegToRad( 45 ) / 2 );  // SizeY = 2 に対して画角 45°
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamOrth3D
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCameraOrth3D
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkCamOrth3D.GetProjMat :TSingleM4;
+function TVkCameraOrth3D.GetProjMat :TSingleM4;
 begin
      Result := VkProjOrth3D( SizeX, SizeY, NeaZ, FarZ );
 end;
-
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScene3D
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
 

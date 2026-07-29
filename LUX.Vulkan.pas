@@ -17,7 +17,9 @@ uses System.Classes,
      LUX.Vulkan.Argume.Memory.Imager.D2,
      LUX.Vulkan.Argume.Memory.Imager.D3,
      LUX.Vulkan.Shader,
-     LUX.Vulkan.Kernel;
+     LUX.Vulkan.Kernel,
+     LUX.Vulkan.Passer,
+     LUX.Vulkan.Raster;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
@@ -42,6 +44,12 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
                      TVkKernel   = TVkKernel <TVkSystem,TVkDevice,TVkContex,TVkShader>;
                        TVkParames = TVkParames<TVkSystem,TVkDevice,TVkContex,TVkShader>;
                          TVkParame = TVkParame <TVkSystem,TVkDevice,TVkContex,TVkShader>;
+               TVkPassers        = TVkPassers<TVkSystem,TVkDevice,TVkContex>;
+                 TVkPasser       = TVkPasser <TVkSystem,TVkDevice,TVkContex>;
+               TVkRasters        = TVkRasters<TVkSystem,TVkDevice,TVkContex>;
+                 TVkRaster       = TVkRaster <TVkSystem,TVkDevice,TVkContex>;
+                   TVkStagers    = TVkStagers<TVkSystem,TVkDevice,TVkContex>;
+                     TVkStager   = TVkStager <TVkSystem,TVkDevice,TVkContex>;
 
      TVkBinding = LUX.Vulkan.Shader.TVkBinding;
 
