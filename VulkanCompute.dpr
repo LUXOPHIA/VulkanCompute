@@ -35,6 +35,8 @@ uses
   LUX.Vulkan.Argume.Memory.Imager.D3 in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Argume.Memory.Imager.D3.pas',
   LUX.Vulkan.Shader in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Shader.pas',
   LUX.Vulkan.Kernel in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Kernel.pas',
+  LUX.Vulkan.Passer in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Passer.pas',
+  LUX.Vulkan.Raster in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Raster.pas',
   LUX.Vulkan.Show in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Show.pas',
   LUX.Vulkan in '_LIBRARY\LUXOPHIA\LUX.Vulkan\LUX.Vulkan.pas',
   LUX.Vulkan.Stream.FMX.D1 in '_LIBRARY\LUXOPHIA\LUX.Vulkan\Stream\LUX.Vulkan.Stream.FMX.D1.pas',

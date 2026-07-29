@@ -139,7 +139,7 @@ procedure TForm1.MakeArguments;
 begin
      ////////// BUFFER
 
-     _Buffer := TVkBuffer<TSingleC>.Create( _Contex, _Queuer );                 // 生成
+     _Buffer := TVkBuffer<TSingleC>.Create( _Queuer );                          // 生成（コンテキストはキューから導かれる）
 
      _Buffer.Count := 2;                                                        // 要素数の設定
 
@@ -153,7 +153,7 @@ begin
 
      ////////// TEXTURE
 
-     _Textur := TVkImager1DxBGRAxUFix8.Create( _Contex, _Queuer );              // 生成
+     _Textur := TVkImager1DxBGRAxUFix8.Create( _Queuer );                       // 生成
 
      _TexFMX := TVkStream1DxBGRAxUFix8_FMX.Create( _Textur );                   // ストリームの生成
 
@@ -171,7 +171,7 @@ begin
 
      ////////// IMAGE
 
-     _Imager := TVkImager2DxBGRAxUFix8.Create( _Contex, _Queuer );              // 生成
+     _Imager := TVkImager2DxBGRAxUFix8.Create( _Queuer );                       // 生成
 
      _Imager.CountX := 500;                                                     // 横ピクセル数の設定
      _Imager.CountY := 500;                                                     // 縦ピクセル数の設定

@@ -161,6 +161,8 @@
         <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Argume.Memory.Imager.D3.pas"/>
         <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Shader.pas"/>
         <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Kernel.pas"/>
+        <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Passer.pas"/>
+        <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Raster.pas"/>
         <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Core\LUX.Vulkan.Show.pas"/>
         <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\LUX.Vulkan.pas"/>
         <DCCReference Include="_LIBRARY\LUXOPHIA\LUX.Vulkan\Stream\LUX.Vulkan.Stream.FMX.D1.pas"/>
