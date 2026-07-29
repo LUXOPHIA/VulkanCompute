@@ -29,8 +29,7 @@ interface //####################################################################
 uses vk_platform, vulkan_core, vulkan_win32, vulkan_functions,
      LUX.Code.C,
      LUX.Vulkan.core,
-     LUX.Vulkan,
-     LUX.Vulkan.Graphics.Passer;
+     LUX.Vulkan;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
@@ -82,7 +81,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure DestroHandle; virtual;
        procedure ForceHandle;
      public
-       constructor Create( const Contex_:TVkContex; const Queuer_:TVkQueuer;
+       constructor Create( const Queuer_:TVkQueuer;
                            const Passer_:TVkPasser; const Window_:T_HWND ); virtual;
        destructor Destroy; override;
        ///// P R O P E R T Y
@@ -534,12 +533,12 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkSwaper.Create( const Contex_:TVkContex; const Queuer_:TVkQueuer;
+constructor TVkSwaper.Create( const Queuer_:TVkQueuer;
                               const Passer_:TVkPasser; const Window_:T_HWND );
 begin
      inherited Create;
 
-     _Contex := Contex_;
+     _Contex := Queuer_.Contex;  // コンテキストはキューから導く
      _Queuer := Queuer_;
      _Passer := Passer_;
      _Window := Window_;

@@ -116,7 +116,6 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _Name     :String;
        _Queuer   :TVkQueuer_;
        _Parames  :TVkParames_;
-       _GloMin   :TLoop3D;
        _GloSiz   :TLoop3D;
        _DescLay  :T_VkDescriptorSetLayout;
        _PipLay   :T_VkPipelineLayout;
@@ -127,24 +126,12 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure SetHandle( const Handle_:T_VkPipeline ); virtual;
        function GetName :String; virtual;
        procedure SetName( const Name_:String ); virtual;
-       function GetGloMinX :Integer; virtual;
-       procedure SetGloMinX( const GloMinX_:Integer ); virtual;
-       function GetGloMinY :Integer; virtual;
-       procedure SetGloMinY( const GloMinY_:Integer ); virtual;
-       function GetGloMinZ :Integer; virtual;
-       procedure SetGloMinZ( const GloMinZ_:Integer ); virtual;
        function GetGloSizX :Integer; virtual;
        procedure SetGloSizX( const GloSizX_:Integer ); virtual;
        function GetGloSizY :Integer; virtual;
        procedure SetGloSizY( const GloSizY_:Integer ); virtual;
        function GetGloSizZ :Integer; virtual;
        procedure SetGloSizZ( const GloSizZ_:Integer ); virtual;
-       function GetGloMaxX :Integer; virtual;
-       procedure SetGloMaxX( const GloMaxX_:Integer ); virtual;
-       function GetGloMaxY :Integer; virtual;
-       procedure SetGloMaxY( const GloMaxY_:Integer ); virtual;
-       function GetGloMaxZ :Integer; virtual;
-       procedure SetGloMaxZ( const GloMaxZ_:Integer ); virtual;
        function GetGloDimN :Integer; virtual;
        ///// M E T H O D
        function DeviceHandle :T_VkDevice;
@@ -165,15 +152,10 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Queuer  :TVkQueuer_        read   _Queuer                  ;
        property Parames :TVkParames_       read   _Parames                 ;
        property DescSet :T_VkDescriptorSet read   _DescSet                 ;
-       property GloMinX :Integer           read GetGloMinX write SetGloMinX;
-       property GloMinY :Integer           read GetGloMinY write SetGloMinY;
-       property GloMinZ :Integer           read GetGloMinZ write SetGloMinZ;
+       // vkCmdDispatch にはオフセット引数が無いため、OpenCL の GloMin* に相当する物は無い
        property GloSizX :Integer           read GetGloSizX write SetGloSizX;
        property GloSizY :Integer           read GetGloSizY write SetGloSizY;
        property GloSizZ :Integer           read GetGloSizZ write SetGloSizZ;
-       property GloMaxX :Integer           read GetGloMaxX write SetGloMaxX;
-       property GloMaxY :Integer           read GetGloMaxY write SetGloMaxY;
-       property GloMaxZ :Integer           read GetGloMaxZ write SetGloMaxZ;
        property GloDimN :Integer           read GetGloDimN                 ;
        ///// M E T H O D
        procedure FreeHandle;
@@ -553,38 +535,6 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloMinX :Integer;
-begin
-     Result := _GloMin.X;
-end;
-
-procedure TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.SetGloMinX( const GloMinX_:Integer );
-begin
-     _GloMin.X := GloMinX_;
-end;
-
-function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloMinY :Integer;
-begin
-     Result := _GloMin.Y;
-end;
-
-procedure TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.SetGloMinY( const GloMinY_:Integer );
-begin
-     _GloMin.Y := GloMinY_;
-end;
-
-function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloMinZ :Integer;
-begin
-     Result := _GloMin.Z;
-end;
-
-procedure TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.SetGloMinZ( const GloMinZ_:Integer );
-begin
-     _GloMin.Z := GloMinZ_;
-end;
-
-//------------------------------------------------------------------------------
-
 function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloSizX :Integer;
 begin
      Result := _GloSiz.X;
@@ -617,44 +567,12 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloMaxX :Integer;
-begin
-     Result := GloMinX + GloSizX - 1;
-end;
-
-procedure TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.SetGloMaxX( const GloMaxX_:Integer );
-begin
-     GloSizX := GloMaxX_ - GloMinX + 1;
-end;
-
-function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloMaxY :Integer;
-begin
-     Result := GloMinY + GloSizY - 1;
-end;
-
-procedure TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.SetGloMaxY( const GloMaxY_:Integer );
-begin
-     GloSizY := GloMaxY_ - GloMinY + 1;
-end;
-
-function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloMaxZ :Integer;
-begin
-     Result := GloMinZ + GloSizZ - 1;
-end;
-
-procedure TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.SetGloMaxZ( const GloMaxZ_:Integer );
-begin
-     GloSizZ := GloMaxZ_ - GloMinZ + 1;
-end;
-
-//------------------------------------------------------------------------------
-
 function TVkKernel<TVkSystem_,TVkDevice_,TVkContex_,TVkShader_>.GetGloDimN :Integer;
 begin
-     if ( GloMinZ > 0 ) or ( GloSizZ > 1 ) then Result := 3
-                                           else
-     if ( GloMinY > 0 ) or ( GloSizY > 1 ) then Result := 2
-                                           else Result := 1;
+     if GloSizZ > 1 then Result := 3
+                    else
+     if GloSizY > 1 then Result := 2
+                    else Result := 1;
 end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
@@ -836,7 +754,6 @@ begin
      _Name   := '';
      _Queuer := nil;
 
-     _GloMin.X := 0;  _GloMin.Y := 0;  _GloMin.Z := 0;
      _GloSiz.X := 1;  _GloSiz.Y := 1;  _GloSiz.Z := 1;
 end;
 

@@ -1,4 +1,4 @@
-﻿unit LUX.Vulkan.Graphics.Passer;
+﻿unit LUX.Vulkan.Passer;
 
 // 描画パス（VkRenderPass）
 //
@@ -22,29 +22,30 @@
 //   TVkImager.AssumeLayout で教える必要がある（クラス側は追跡できない）。
 //
 //【所有】
-// ・呼び出し側の所有物である。Contex より先に解放すること。
+// ・TVkContex の子（Contex.Passers）であり、コンテキストと共に解放される。
 
 interface //#################################################################### ■
 
 uses vk_platform, vulkan_core, vulkan_functions,
+     LUX.Data.List,
      LUX.Code.C,
-     LUX.Vulkan.core,
-     LUX.Vulkan;
+     LUX.Vulkan.core;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
-     TVkPasser = class;
+     TVkPassers <TVkSystem_,TVkDevice_,TVkContex_:class> = class;
+       TVkPasser<TVkSystem_,TVkDevice_,TVkContex_:class> = class;
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C L A S S 】
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkPasser
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>
 
-     TVkPasser = class
+     TVkPasser<TVkSystem_,TVkDevice_,TVkContex_:class> = class( TListChildr<TVkContex_,TVkPassers<TVkSystem_,TVkDevice_,TVkContex_>> )
      private
+       type TVkPassers_ = TVkPassers<TVkSystem_,TVkDevice_,TVkContex_>;
      protected
-       _Contex    :TVkContex;
        _Handle    :T_VkRenderPass;
        _ColorForm :T_VkFormat;
        _DepthForm :T_VkFormat;
@@ -62,18 +63,30 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function CreateHandle :T_VkResult; virtual;
        function DestroHandle :T_VkResult; virtual;
      public
-       constructor Create( const Contex_:TVkContex ); virtual;
+       constructor Create; override;
+       constructor Create( const Contex_:TVkContex_ ); overload; virtual;
        destructor Destroy; override;
        ///// P R O P E R T Y
-       property Contex    :TVkContex       read   _Contex                      ;
-       property Handle    :T_VkRenderPass  read GetHandle                       ;
-       property ColorForm :T_VkFormat      read GetColorForm write SetColorForm ;  // 色添付の形式
-       property DepthForm :T_VkFormat      read GetDepthForm write SetDepthForm ;  // 深度添付の形式（UNDEFINED なら深度添付なし）
-       property ColorLast :T_VkImageLayout read GetColorLast write SetColorLast ;  // 色添付の最終レイアウト
-       property DepthOK   :Boolean         read GetDepthOK                      ;  // 深度添付を持つか
+       property Contex    :TVkContex_      read GetOwnere                      ;
+       property Passers   :TVkPassers_     read GetParent                      ;
+       property Handle    :T_VkRenderPass  read GetHandle                      ;
+       property ColorForm :T_VkFormat      read GetColorForm write SetColorForm;  // 色添付の形式
+       property DepthForm :T_VkFormat      read GetDepthForm write SetDepthForm;  // 深度添付の形式（UNDEFINED なら深度添付なし）
+       property ColorLast :T_VkImageLayout read GetColorLast write SetColorLast;  // 色添付の最終レイアウト
+       property DepthOK   :Boolean         read GetDepthOK                     ;  // 深度添付を持つか
        ///// M E T H O D
        function DeviceHandle :T_VkDevice;
        procedure FreeHandle;
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkPassers<TVkSystem_,TVkDevice_,TVkContex_>
+
+     TVkPassers<TVkSystem_,TVkDevice_,TVkContex_:class> = class( TListParent<TVkContex_,TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>> )
+     private
+     protected
+     public
+       ///// P R O P E R T Y
+       property Contex :TVkContex_ read GetOwnere;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C O N S T A N T 】
@@ -84,11 +97,13 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 implementation //############################################################### ■
 
+uses LUX.Vulkan.Contex;
+
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C L A S S 】
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkPasser
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
 
@@ -96,7 +111,7 @@ implementation //###############################################################
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkPasser.GetHandle :T_VkRenderPass;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.GetHandle :T_VkRenderPass;
 begin
      if _Handle = Default( T_VkRenderPass ) then CheckVk( CreateHandle, 'TVkPasser.CreateHandle is Error!' );
 
@@ -105,36 +120,36 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkPasser.GetColorForm :T_VkFormat;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.GetColorForm :T_VkFormat;
 begin
      Result := _ColorForm;
 end;
 
-procedure TVkPasser.SetColorForm( const ColorForm_:T_VkFormat );
+procedure TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.SetColorForm( const ColorForm_:T_VkFormat );
 begin
      if ColorForm_ = _ColorForm then Exit;
 
      _ColorForm := ColorForm_;  FreeHandle;
 end;
 
-function TVkPasser.GetDepthForm :T_VkFormat;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.GetDepthForm :T_VkFormat;
 begin
      Result := _DepthForm;
 end;
 
-procedure TVkPasser.SetDepthForm( const DepthForm_:T_VkFormat );
+procedure TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.SetDepthForm( const DepthForm_:T_VkFormat );
 begin
      if DepthForm_ = _DepthForm then Exit;
 
      _DepthForm := DepthForm_;  FreeHandle;
 end;
 
-function TVkPasser.GetColorLast :T_VkImageLayout;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.GetColorLast :T_VkImageLayout;
 begin
      Result := _ColorLast;
 end;
 
-procedure TVkPasser.SetColorLast( const ColorLast_:T_VkImageLayout );
+procedure TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.SetColorLast( const ColorLast_:T_VkImageLayout );
 begin
      if ColorLast_ = _ColorLast then Exit;
 
@@ -143,14 +158,14 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkPasser.GetDepthOK :Boolean;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.GetDepthOK :Boolean;
 begin
      Result := _DepthForm <> VK_FORMAT_UNDEFINED;
 end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkPasser.CreateHandle :T_VkResult;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.CreateHandle :T_VkResult;
 var
    As_ :array [ 0..1 ] of T_VkAttachmentDescription;
    CR, DR :T_VkAttachmentReference;
@@ -245,7 +260,7 @@ begin
      Result := vkCreateRenderPass( DeviceHandle, @I, nil, @_Handle );
 end;
 
-function TVkPasser.DestroHandle :T_VkResult;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.DestroHandle :T_VkResult;
 begin
      vkDestroyRenderPass( DeviceHandle, _Handle, nil );
 
@@ -256,11 +271,9 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkPasser.Create( const Contex_:TVkContex );
+constructor TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.Create;
 begin
-     inherited Create;
-
-     _Contex := Contex_;
+     inherited;
 
      _Handle := Default( T_VkRenderPass );
 
@@ -269,7 +282,12 @@ begin
      _ColorLast := VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;      // オフスクリーンの既定（取り出す前提）
 end;
 
-destructor TVkPasser.Destroy;
+constructor TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.Create( const Contex_:TVkContex_ );
+begin
+     inherited Create( TVkContex<TVkSystem_,TVkDevice_>( Contex_ ).Passers );
+end;
+
+destructor TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.Destroy;
 begin
      FreeHandle;
 
@@ -278,15 +296,23 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkPasser.DeviceHandle :T_VkDevice;
+function TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.DeviceHandle :T_VkDevice;
 begin
-     Result := _Contex.Handle;
+     Result := TVkContex<TVkSystem_,TVkDevice_>( Contex ).Handle;
 end;
 
-procedure TVkPasser.FreeHandle;
+procedure TVkPasser<TVkSystem_,TVkDevice_,TVkContex_>.FreeHandle;
 begin
      if _Handle <> Default( T_VkRenderPass ) then DestroHandle;
 end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkPassers<TVkSystem_,TVkDevice_,TVkContex_>
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
 

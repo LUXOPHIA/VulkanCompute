@@ -15,7 +15,7 @@
 //   TSingleM4 で渡る。Pose2D プロパティが両者を仲介する（暗黙変換を使う）。
 //
 //【視野】
-// ・TVkCam2D の SizeX / SizeY はスクリーンの広さ（ワールド単位）であり、その縦横比は
+// ・TVkCamera2D の SizeX / SizeY はスクリーンの広さ（ワールド単位）であり、その縦横比は
 //   描画先の縦横比とは独立である。両者の差は、描画側がビューポートをレターボックス
 //   にして吸収する。
 //
@@ -29,16 +29,12 @@ uses vk_platform, vulkan_core, vulkan_functions,
      LUX.Code.C,
      LUX.Vulkan.core,
      LUX.Vulkan,
-     LUX.Vulkan.Graphics.Passer,
-     LUX.Vulkan.Graphics.Raster,
      LUX.Vulkan.Graphics;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
-     TVkObject2D  = class;
-       TVkShaper2D = class;
-       TVkCam2D    = class;
-       TVkScene2D  = class;
+     TVkShaper2D = class;
+     TVkCamera2D = class;
 
      TVkRaster2D  = class;
      TVkVerBuf2D  = class;
@@ -106,14 +102,6 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        constructor Create( const Contex_:TVkContex ); override;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkObject2D
-
-     TVkObject2D = class( TVkObject )
-     private
-     protected
-     public
-     end;
-
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkShaper2D
 
      // ２Ｄの描画ノード。派生クラスが BuildMesh で形を与える。
@@ -144,10 +132,10 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure Rebuild;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCam2D
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamera2D
 
      // ２Ｄのカメラ。スクリーン（SizeX × SizeY）をそのまま視野とする平行投影。
-     TVkCam2D = class( TVkCam )
+     TVkCamera2D = class( TVkCamera )
      private
      protected
        ///// A C C E S S O R
@@ -161,14 +149,6 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// P R O P E R T Y
        property Pose2D :TSingleM3 read GetPose2D write SetPose2D;  // 局所行列（２Ｄの 3x3 として）
        property Pos    :TSingle2D read GetPos    write SetPos   ;  // 位置
-     end;
-
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScene2D
-
-     TVkScene2D = class( TVkScene )
-     private
-     protected
-     public
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C O N S T A N T 】
@@ -268,8 +248,6 @@ begin
      BlendOK   := True;               // 半透明を重ねる
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkObject2D
-
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkShaper2D
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
@@ -310,16 +288,14 @@ end;
 
 procedure TVkShaper2D.ForceMesh;
 var
-   C :TVkContex;
    Q :TVkQueuer;
 begin
      if _MeshOK then Exit;
 
-     C := Contex;  if not Assigned( C ) then Exit;  // シーンに属していない
-     Q := Queuer;
+     Q := Queuer;  if not Assigned( Q ) then Exit;  // シーンに属していない
 
-     if not Assigned( _Verters ) then _Verters := TVkVerBuf2D.Create( C, Q );
-     if not Assigned( _Indexes ) then _Indexes := TVkIndBuf2D.Create( C, Q );
+     if not Assigned( _Verters ) then _Verters := TVkVerBuf2D.Create( Q );
+     if not Assigned( _Indexes ) then _Indexes := TVkIndBuf2D.Create( Q );
 
      _MeshOK := True;  // BuildMesh の中から再入しないよう、先に立てる
 
@@ -384,28 +360,28 @@ begin
      Changed;
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCam2D
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamera2D
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkCam2D.GetPose2D :TSingleM3;
+function TVkCamera2D.GetPose2D :TSingleM3;
 begin
      Result := TSingleM3( _LocalPose );
 end;
 
-procedure TVkCam2D.SetPose2D( const Pose2D_:TSingleM3 );
+procedure TVkCamera2D.SetPose2D( const Pose2D_:TSingleM3 );
 begin
      LocalPose := Pose2D_;  // TSingleM3 → TSingleM4 は暗黙変換
 end;
 
-function TVkCam2D.GetPos :TSingle2D;
+function TVkCamera2D.GetPos :TSingle2D;
 begin
      Result := TSingle2D.Create( _LocalPose._14, _LocalPose._24 );
 end;
 
-procedure TVkCam2D.SetPos( const Pos_:TSingle2D );
+procedure TVkCamera2D.SetPos( const Pos_:TSingle2D );
 begin
      _LocalPose._14 := Pos_.X;
      _LocalPose._24 := Pos_.Y;
@@ -415,12 +391,10 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkCam2D.GetProjMat :TSingleM4;
+function TVkCamera2D.GetProjMat :TSingleM4;
 begin
      Result := VkProjOrth2D( SizeX, SizeY );
 end;
-
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScene2D
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
 

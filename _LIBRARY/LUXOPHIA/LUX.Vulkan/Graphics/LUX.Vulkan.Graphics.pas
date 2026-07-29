@@ -6,10 +6,10 @@
 // ・LUX.Data.Tree のノードでシーンを木構造に繋ぐ。TVkObject は親も子も自型の節
 //   （TTreeKnot<TVkObject,TVkObject>）であり、互いに自由にジョイントできる。
 //   生成・移籍・部分木ごとの解放・循環の禁止は Tree 層が担う。
-// ・TVkScene は TVkObject の派生でありながら親には所属できない根である。根も
+// ・TVkScener は TVkObject の派生でありながら親には所属できない根である。根も
 //   ノードなので、Changed の遡上は親の連鎖をたどるだけでよい（余分な層が要らない）。
-//   TVkScene を他のノードの子にすることはできない。
-// ・TVkShaper は描画の実体を持つノード、TVkCam は視点のノード。どちらも次元に
+//   TVkScener を他のノードの子にすることはできない。
+// ・TVkShaper は描画の実体を持つノード、TVkCamera は視点のノード。どちらも次元に
 //   依存しないため、実際の形や射影は 2D / 3D の派生ユニットが与える。
 //
 //【座標系】
@@ -25,8 +25,8 @@
 // ・実際の描画コマンドは TVkShaper の派生が DrawMain で発行する。
 //
 //【通知】
-// ・ノードの挿抜・属性の変更は Changed として根の TVkScene へ集まり、OnChange
-//   （TDelegates による多播）で外へ出る。TVkCam は属すシーンの OnChange を購読して
+// ・ノードの挿抜・属性の変更は Changed として根の TVkScener へ集まり、OnChange
+//   （TDelegates による多播）で外へ出る。TVkCamera は属すシーンの OnChange を購読して
 //   OnScene として転送するので、ビューアはカメラだけを受け取ればよい。
 // ・大量の変更は BeginUpdate / EndUpdate（Tree 層の一括更新）で束ねる。破棄中の
 //   ノードは Updating 扱いのため通知は発火しない。
@@ -44,17 +44,15 @@ uses System.UITypes,
      LUX.Data.Tree,
      LUX.Code.C,
      LUX.Vulkan.core,
-     LUX.Vulkan,
-     LUX.Vulkan.Graphics.Passer,
-     LUX.Vulkan.Graphics.Raster;
+     LUX.Vulkan;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
      TVkDrawer = class;
      TVkObject = class;
        TVkShaper = class;
-       TVkCam    = class;
-       TVkScene  = class;
+       TVkCamera    = class;
+       TVkScener  = class;
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
 
@@ -69,18 +67,13 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
        _Comman   :T_VkCommandBuffer;
        _Passer   :TVkPasser;
-       _SizeX    :Integer;
-       _SizeY    :Integer;
        _ProjView :TSingleM4;
        _Raster   :TVkRaster;
      public
-       constructor Create( const Comman_:T_VkCommandBuffer; const Passer_:TVkPasser;
-                           const SizeX_,SizeY_:Integer ); virtual;
+       constructor Create( const Comman_:T_VkCommandBuffer; const Passer_:TVkPasser ); virtual;
        ///// P R O P E R T Y
        property Comman   :T_VkCommandBuffer read _Comman                 ;  // 記録中のコマンドバッファ
        property Passer   :TVkPasser         read _Passer                 ;  // 描画先の描画パス
-       property SizeX    :Integer           read _SizeX                  ;  // 描画先の横ピクセル数
-       property SizeY    :Integer           read _SizeY                  ;  // 描画先の縦ピクセル数
        property ProjView :TSingleM4         read _ProjView write _ProjView;  // 射影行列 × 視野行列（カメラが設定する）
        property Raster   :TVkRaster         read _Raster                 ;  // いま束ねているパイプライン
        ///// M E T H O D
@@ -109,7 +102,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure OnRemoveChildr( const Childr_:TTreeNode ); override;
        procedure Updated; override;
        ///// A C C E S S O R
-       function GetScene :TVkScene; virtual;
+       function GetScene :TVkScener; virtual;
        function GetContex :TVkContex; virtual;
        function GetQueuer :TVkQueuer; virtual;
        ///// M E T H O D
@@ -117,9 +110,9 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      public
        constructor Create; overload; override;
        ///// P R O P E R T Y
-       property Scene      :TVkScene  read GetScene                      ;  // 属すシーン（根が TVkScene でなければ nil）
-       property Contex     :TVkContex read GetContex                     ;  // シーンが持つコンテキスト（同 nil）
-       property Queuer     :TVkQueuer read GetQueuer                     ;  // シーンが持つキュー　　（同 nil）
+       property Scene      :TVkScener read GetScene                         ;  // 属すシーン（根が TVkScener でなければ nil）
+       property Contex     :TVkContex read GetContex                        ;  // シーンが持つコンテキスト（同 nil）
+       property Queuer     :TVkQueuer read GetQueuer                        ;  // シーンが持つキュー　　（同 nil）
        property LocalPose  :TSingleM4 read GetLocalPose  write SetLocalPose ;  // 局所行列（親ノード座標系 ← 自ノード座標系）
        property GlobalPose :TSingleM4 read GetGlobalPose write SetGlobalPose;  // 大域行列（＝ 先祖の局所行列の積）
        property Visible    :Boolean   read GetVisible    write SetVisible   ;  // 描くか（部分木ごと隠れる）
@@ -143,14 +136,14 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        constructor Create; overload; override;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCam
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamera
 
      // 視点のノード。自分では何も描かない。姿勢は先祖の積（GlobalPose）で決まる。
      // 属すシーンの OnChange を購読して OnScene として転送する。所属の変更には
      // Create( Parent_ ) と Parent への代入で追従する。
-     TVkCam = class( TVkObject )
+     TVkCamera = class( TVkObject )
      private
-       _Scene :TVkScene;  // 購読中のシーン
+       _Scene :TVkScener;  // 購読中のシーン
        ///// E V E N T
        _OnScene :TDelegates;
        ///// M E T H O D
@@ -181,26 +174,26 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        destructor Destroy; override;
        procedure AfterConstruction; override;
        ///// P R O P E R T Y
-       property Scene    :TVkScene read _Scene       ;  // 属すシーン（どこにも属さなければ nil）
-       property SizeX    :Single   read GetSizeX     write SetSizeX;  // スクリーンの幅（実寸）
-       property SizeY    :Single   read GetSizeY     write SetSizeY;  // スクリーンの高さ（実寸）
-       property NeaZ     :Single   read GetNeaZ      write SetNeaZ ;  // 前方クリップ面
-       property FarZ     :Single   read GetFarZ      write SetFarZ ;  // 後方クリップ面
+       property Scene    :TVkScener read   _Scene                ;  // 属すシーン（どこにも属さなければ nil）
+       property SizeX    :Single    read GetSizeX  write SetSizeX;  // スクリーンの幅（実寸）
+       property SizeY    :Single    read GetSizeY  write SetSizeY;  // スクリーンの高さ（実寸）
+       property NeaZ     :Single    read GetNeaZ   write SetNeaZ ;  // 前方クリップ面
+       property FarZ     :Single    read GetFarZ   write SetFarZ ;  // 後方クリップ面
        ///// E V E N T
-       property OnScene :TDelegates read _OnScene;  // シーンの変化の通知（TVkScene.OnChange の転送）
+       property OnScene :TDelegates read _OnScene;  // シーンの変化の通知（TVkScener.OnChange の転送）
        ///// M E T H O D
        function ProjMat :TSingleM4;
        function ViewMat :TSingleM4;
        procedure Render( const Drawer_:TVkDrawer );
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScene
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScener
 
      // シーンの根。ノードでありながら親には所属できない。
      // シーンの変化を OnChange で外へ出す。
      // Vulkan のコンテキストとキューを持ち、シーンに属すノードはこれを通して
      // 自分の資源（頂点バッファなど）を確保する。
-     TVkScene = class( TVkObject )
+     TVkScener = class( TVkObject )
      private
        ///// E V E N T
        _OnChange :TDelegates;
@@ -210,7 +203,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _BackColor :TAlphaColorF;
        ///// A C C E S S O R
        procedure SetParent( const Parent_:TVkObject ); override;
-       function GetScene :TVkScene; override;
+       function GetScene :TVkScener; override;
        function GetContex :TVkContex; override;
        procedure SetContex( const Contex_:TVkContex ); virtual;
        function GetQueuer :TVkQueuer; override;
@@ -219,7 +212,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure SetBackColor( const BackColor_:TAlphaColorF ); virtual;
      public
        constructor Create; overload; override;
-       constructor Create( const Contex_:TVkContex; const Queuer_:TVkQueuer ); overload; virtual;
+       constructor Create( const Queuer_:TVkQueuer ); overload; virtual;
        ///// P R O P E R T Y
        property Contex    :TVkContex    read GetContex    write SetContex   ;  // 資源を確保するコンテキスト
        property Queuer    :TVkQueuer    read GetQueuer    write SetQueuer   ;  // 転送に使うキュー
@@ -240,6 +233,12 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 // ピクセル）へ最大の大きさで収める視野。余白（レターボックス）には、描画パスが
 // 描画先いっぱいに塗った背景色がそのまま残る。
 function VkFitViewport( const CamX_,CamY_:Single; const DstX_,DstY_:Integer ) :T_VkViewport;
+
+// シーンを 1 パス分描くコマンド列（クリア 〜 EndRenderPass）を記録する。
+// TVkRender と TVkViewer が共用する。カメラが nil なら背景色だけを塗る。
+procedure VkRecordScene( const Comman_:T_VkCommandBuffer; const Passer_:TVkPasser;
+                         const Framer_:T_VkFramebuffer; const SizeX_,SizeY_:Integer;
+                         const Camera_:TVkCamera );
 
 implementation //############################################################### ■
 
@@ -267,6 +266,72 @@ begin
      end;
 end;
 
+procedure VkRecordScene( const Comman_:T_VkCommandBuffer; const Passer_:TVkPasser;
+                         const Framer_:T_VkFramebuffer; const SizeX_,SizeY_:Integer;
+                         const Camera_:TVkCamera );
+var
+   B :TAlphaColorF;
+   Cs :array [ 0..1 ] of T_VkClearValue;
+   BI :T_VkRenderPassBeginInfo;
+   V :T_VkViewport;
+   S :T_VkRect2D;
+   D :TVkDrawer;
+begin
+     ////////// CLEAR VALUES
+
+     if Assigned( Camera_ ) and Assigned( Camera_.Scene ) then B := Camera_.Scene.BackColor
+                                                          else B := TAlphaColorF.Create( 0, 0, 0, 1 );
+
+     FillChar( Cs, SizeOf( Cs ), 0 );
+
+     Cs[ 0 ].color.float32[ 0 ] := B.R;
+     Cs[ 0 ].color.float32[ 1 ] := B.G;
+     Cs[ 0 ].color.float32[ 2 ] := B.B;
+     Cs[ 0 ].color.float32[ 3 ] := B.A;
+
+     Cs[ 1 ].depthStencil.depth := 1;
+
+     ////////// RENDER PASS
+
+     FillChar( BI, SizeOf( BI ), 0 );
+     with BI do
+     begin
+          sType                    := VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+          renderPass               := Passer_.Handle;
+          framebuffer              := Framer_;
+          renderArea.extent.width  := SizeX_;
+          renderArea.extent.height := SizeY_;
+          clearValueCount          := 2;
+          pClearValues             := @Cs[ 0 ];
+     end;
+
+     vkCmdBeginRenderPass( Comman_, @BI, VK_SUBPASS_CONTENTS_INLINE );
+
+     // カメラのスクリーンの縦横比を保って収める。余白には、いま塗った背景色が残る
+     if Assigned( Camera_ ) then V := VkFitViewport( Camera_.SizeX, Camera_.SizeY, SizeX_, SizeY_ )
+                            else V := VkFitViewport( SizeX_       , SizeY_       , SizeX_, SizeY_ );
+
+     vkCmdSetViewport( Comman_, 0, 1, @V );
+
+     FillChar( S, SizeOf( S ), 0 );
+     S.extent.width  := SizeX_;
+     S.extent.height := SizeY_;
+
+     vkCmdSetScissor( Comman_, 0, 1, @S );
+
+     if Assigned( Camera_ ) then
+     begin
+          D := TVkDrawer.Create( Comman_, Passer_ );
+          try
+             Camera_.Render( D );
+          finally
+             D.Free;
+          end;
+     end;
+
+     vkCmdEndRenderPass( Comman_ );
+end;
+
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C L A S S 】
@@ -275,15 +340,12 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkDrawer.Create( const Comman_:T_VkCommandBuffer; const Passer_:TVkPasser;
-                              const SizeX_,SizeY_:Integer );
+constructor TVkDrawer.Create( const Comman_:T_VkCommandBuffer; const Passer_:TVkPasser );
 begin
      inherited Create;
 
      _Comman   := Comman_;
      _Passer   := Passer_;
-     _SizeX    := SizeX_;
-     _SizeY    := SizeY_;
      _ProjView := 1;
      _Raster   := nil;
 end;
@@ -326,7 +388,7 @@ end;
 
 function TVkObject.GetLocalPose :TSingleM4;
 begin
-     Result := 1;  // 既定は恒等（行列の実体は TVkShaper / TVkCam が持つ）
+     Result := 1;  // 既定は恒等（行列の実体は TVkShaper / TVkCamera が持つ）
 end;
 
 procedure TVkObject.SetLocalPose( const LocalPose_:TSingleM4 );
@@ -384,19 +446,19 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkObject.GetScene :TVkScene;
+function TVkObject.GetScene :TVkScener;
 var
    R :TTreeNode;
 begin
      R := Root;
 
-     if R is TVkScene then Result := TVkScene( R )
+     if R is TVkScener then Result := TVkScener( R )
                       else Result := nil;  // どのシーンにも属していない
 end;
 
 function TVkObject.GetContex :TVkContex;
 var
-   S :TVkScene;
+   S :TVkScener;
 begin
      S := GetScene;
 
@@ -406,7 +468,7 @@ end;
 
 function TVkObject.GetQueuer :TVkQueuer;
 var
-   S :TVkScene;
+   S :TVkScener;
 begin
      S := GetScene;
 
@@ -418,7 +480,7 @@ end;
 
 function TVkObject.AcceptChildr( const Childr_:TTreeNode ) :Boolean;
 begin
-     Result := inherited AcceptChildr( Childr_ ) and not ( Childr_ is TVkScene );  // シーンは入れ子にできない
+     Result := inherited AcceptChildr( Childr_ ) and not ( Childr_ is TVkScener );  // シーンは入れ子にできない
 end;
 
 procedure TVkObject.OnInsertChildr( const Childr_:TTreeNode );
@@ -465,7 +527,7 @@ procedure TVkObject.Changed;
 begin
      if Updating then Exit;  // 一括更新中は発火しない（最外殻の EndUpdate で Updated が発火する）
 
-     if Assigned( Parent ) then Parent.Changed;  // 根（TVkScene）まで遡る
+     if Assigned( Parent ) then Parent.Changed;  // 根（TVkScener）まで遡る
 end;
 
 //------------------------------------------------------------------------------
@@ -511,13 +573,13 @@ begin
      _LocalPose := 1;
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCam
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkCamera
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-procedure TVkCam.Subscribe;
+procedure TVkCamera.Subscribe;
 var
    R :TTreeNode;
 begin
@@ -527,12 +589,12 @@ begin
 
      R := Root;
 
-     if R is TVkScene then _Scene := TVkScene( R );
+     if R is TVkScener then _Scene := TVkScener( R );
 
      if Assigned( _Scene ) then _Scene.OnChange.Add( SceneChange );
 end;
 
-procedure TVkCam.SceneChange( Sender_:TObject );
+procedure TVkCamera.SceneChange( Sender_:TObject );
 begin
      _OnScene.Run( Self );
 end;
@@ -541,12 +603,12 @@ end;
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkCam.GetLocalPose :TSingleM4;
+function TVkCamera.GetLocalPose :TSingleM4;
 begin
      Result := _LocalPose;
 end;
 
-procedure TVkCam.SetLocalPose( const LocalPose_:TSingleM4 );
+procedure TVkCamera.SetLocalPose( const LocalPose_:TSingleM4 );
 begin
      _LocalPose := LocalPose_;
 
@@ -555,7 +617,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TVkCam.SetParent( const Parent_:TVkObject );
+procedure TVkCamera.SetParent( const Parent_:TVkObject );
 begin
      inherited;
 
@@ -564,24 +626,24 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkCam.GetSizeX :Single;
+function TVkCamera.GetSizeX :Single;
 begin
      Result := _SizeX;
 end;
 
-procedure TVkCam.SetSizeX( const SizeX_:Single );
+procedure TVkCamera.SetSizeX( const SizeX_:Single );
 begin
      _SizeX := SizeX_;
 
      Changed;
 end;
 
-function TVkCam.GetSizeY :Single;
+function TVkCamera.GetSizeY :Single;
 begin
      Result := _SizeY;
 end;
 
-procedure TVkCam.SetSizeY( const SizeY_:Single );
+procedure TVkCamera.SetSizeY( const SizeY_:Single );
 begin
      _SizeY := SizeY_;
 
@@ -590,24 +652,24 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkCam.GetNeaZ :Single;
+function TVkCamera.GetNeaZ :Single;
 begin
      Result := _NeaZ;
 end;
 
-procedure TVkCam.SetNeaZ( const NeaZ_:Single );
+procedure TVkCamera.SetNeaZ( const NeaZ_:Single );
 begin
      _NeaZ := NeaZ_;
 
      Changed;
 end;
 
-function TVkCam.GetFarZ :Single;
+function TVkCamera.GetFarZ :Single;
 begin
      Result := _FarZ;
 end;
 
-procedure TVkCam.SetFarZ( const FarZ_:Single );
+procedure TVkCamera.SetFarZ( const FarZ_:Single );
 begin
      _FarZ := FarZ_;
 
@@ -616,14 +678,14 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkCam.GetProjMat :TSingleM4;
+function TVkCamera.GetProjMat :TSingleM4;
 begin
      Result := 1;  // 既定は恒等（射影は 2D / 3D の派生が与える）
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkCam.Create;
+constructor TVkCamera.Create;
 begin
      inherited;
 
@@ -637,14 +699,14 @@ begin
      _FarZ := 1000;
 end;
 
-destructor TVkCam.Destroy;
+destructor TVkCamera.Destroy;
 begin
      if Assigned( _Scene ) then _Scene.OnChange.Del( SceneChange );  // 購読解除
 
      inherited;
 end;
 
-procedure TVkCam.AfterConstruction;
+procedure TVkCamera.AfterConstruction;
 begin
      inherited;  // ここで親へ挿入される
 
@@ -653,19 +715,19 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkCam.ProjMat :TSingleM4;
+function TVkCamera.ProjMat :TSingleM4;
 begin
      Result := GetProjMat;
 end;
 
-function TVkCam.ViewMat :TSingleM4;
+function TVkCamera.ViewMat :TSingleM4;
 begin
      Result := GlobalPose.Inverse;  // ワールド座標系 → カメラ座標系
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TVkCam.Render( const Drawer_:TVkDrawer );
+procedure TVkCamera.Render( const Drawer_:TVkDrawer );
 begin
      if not Assigned( _Scene ) then Exit;  // シーンに属していなければ何も描かない
 
@@ -676,44 +738,44 @@ begin
      _Scene.Draw( Drawer_, 1 );  // 根の恒等行列から積み始める
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScene
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkScener
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-procedure TVkScene.SetParent( const Parent_:TVkObject );
+procedure TVkScener.SetParent( const Parent_:TVkObject );
 begin
-     if Assigned( Parent_ ) then raise ETreeError.Create( 'TVkScene: 親には所属できません' );
+     if Assigned( Parent_ ) then raise ETreeError.Create( 'TVkScener: 親には所属できません' );
 
      inherited;
 end;
 
 //------------------------------------------------------------------------------
 
-function TVkScene.GetScene :TVkScene;
+function TVkScener.GetScene :TVkScener;
 begin
      Result := Self;  // 自分が根
 end;
 
-function TVkScene.GetContex :TVkContex;
+function TVkScener.GetContex :TVkContex;
 begin
      Result := _Contex;
 end;
 
-procedure TVkScene.SetContex( const Contex_:TVkContex );
+procedure TVkScener.SetContex( const Contex_:TVkContex );
 begin
      _Contex := Contex_;
 
      Changed;
 end;
 
-function TVkScene.GetQueuer :TVkQueuer;
+function TVkScener.GetQueuer :TVkQueuer;
 begin
      Result := _Queuer;
 end;
 
-procedure TVkScene.SetQueuer( const Queuer_:TVkQueuer );
+procedure TVkScener.SetQueuer( const Queuer_:TVkQueuer );
 begin
      _Queuer := Queuer_;
 
@@ -722,12 +784,12 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkScene.GetBackColor :TAlphaColorF;
+function TVkScener.GetBackColor :TAlphaColorF;
 begin
      Result := _BackColor;
 end;
 
-procedure TVkScene.SetBackColor( const BackColor_:TAlphaColorF );
+procedure TVkScener.SetBackColor( const BackColor_:TAlphaColorF );
 begin
      _BackColor := BackColor_;
 
@@ -736,7 +798,7 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkScene.Create;
+constructor TVkScener.Create;
 begin
      inherited;
 
@@ -746,17 +808,17 @@ begin
      _BackColor := TAlphaColorF.Create( 0.2, 0.2, 0.2, 1 );
 end;
 
-constructor TVkScene.Create( const Contex_:TVkContex; const Queuer_:TVkQueuer );
+constructor TVkScener.Create( const Queuer_:TVkQueuer );
 begin
      Create;
 
-     _Contex := Contex_;
+     _Contex := Queuer_.Contex;  // コンテキストはキューから導く
      _Queuer := Queuer_;
 end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-procedure TVkScene.Changed;
+procedure TVkScener.Changed;
 begin
      if Updating then Exit;  // 一括更新中は発火しない（最外殻の EndUpdate で Updated が発火する）
 

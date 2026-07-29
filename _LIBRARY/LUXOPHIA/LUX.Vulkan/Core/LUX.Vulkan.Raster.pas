@@ -1,4 +1,4 @@
-﻿unit LUX.Vulkan.Graphics.Raster;
+﻿unit LUX.Vulkan.Raster;
 
 // ラスタライズパイプライン（VkPipeline ＋ VkPipelineLayout）
 //
@@ -6,10 +6,10 @@
 // ・演算パイプラインの TVkKernel に対する、描画パイプラインの対応物である。
 //   どちらも VkPipeline だが、演算は VkShaderModule 1 個から作られるのに対し、
 //   描画は複数（頂点・フラグメント …）から作られるため、TVkKernel のように
-//   単一の TVkShader の子には置けず、TVkContex を受け取る独立したクラスとなる。
+//   単一の TVkShader の子には置けず、TVkContex の子（Contex.Rasters）となる。
 //
-//【段（TVkStage）】
-// ・TVkStage は VkPipelineShaderStageCreateInfo に対応し、TVkShader（＝
+//【段（TVkStager）】
+// ・TVkStager は VkPipelineShaderStageCreateInfo に対応し、TVkShader（＝
 //   VkShaderModule）と入口名（Entry）の組を持つ。段の種別は TVkShader.Stage
 //   （glslang の段）から機械的に導かれるので、二重に指定する必要はない。
 //
@@ -36,7 +36,7 @@
 //   大きさが変わってもパイプラインを作り直す必要はない。
 //
 //【所有】
-// ・呼び出し側の所有物である。Contex より先に解放すること。
+// ・TVkContex の子（Contex.Rasters）であり、コンテキストと共に解放される。
 
 interface //#################################################################### ■
 
@@ -45,69 +45,79 @@ uses vk_platform, vulkan_core, vulkan_functions,
      LUX.Data.List,
      LUX.Code.C,
      LUX.Vulkan.core,
-     LUX.Vulkan,
-     LUX.Vulkan.Graphics.Passer;
+     LUX.Vulkan.Shader,
+     LUX.Vulkan.Passer;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 T Y P E 】
 
-     TVkRaster   = class;
-       TVkStages = class;
-         TVkStage = class;
+     TVkRasters   <TVkSystem_,TVkDevice_,TVkContex_:class> = class;
+       TVkRaster  <TVkSystem_,TVkDevice_,TVkContex_:class> = class;
+         TVkStagers<TVkSystem_,TVkDevice_,TVkContex_:class> = class;
+           TVkStager<TVkSystem_,TVkDevice_,TVkContex_:class> = class;
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R E C O R D 】
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C L A S S 】
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStage
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStager<TVkSystem_,TVkDevice_,TVkContex_>
 
      // パイプラインの 1 段（VkPipelineShaderStageCreateInfo）
-     TVkStage = class( TListChildr<TVkRaster,TVkStages> )
+     TVkStager<TVkSystem_,TVkDevice_,TVkContex_:class> = class( TListChildr<TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>,TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>> )
      private
+       type TVkRaster_  = TVkRaster <TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkStagers_ = TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkShader_  = TVkShader <TVkSystem_,TVkDevice_,TVkContex_>;
      protected
-       _Shader :TVkShader;
+       _Shader :TVkShader_;
        _Entry  :String;
        ///// A C C E S S O R
-       function GetShader :TVkShader; virtual;
-       procedure SetShader( const Shader_:TVkShader ); virtual;
+       function GetShader :TVkShader_; virtual;
+       procedure SetShader( const Shader_:TVkShader_ ); virtual;
        function GetEntry :String; virtual;
        procedure SetEntry( const Entry_:String ); virtual;
        function GetFlags :T_VkShaderStageFlagBits; virtual;
      public
        constructor Create; override;
-       constructor Create( const Stages_:TVkStages; const Shader_:TVkShader; const Entry_:String ); overload; virtual;
+       constructor Create( const Stagers_:TVkStagers_; const Shader_:TVkShader_; const Entry_:String ); overload; virtual;
        ///// P R O P E R T Y
-       property Raster :TVkRaster               read GetOwnere               ;
-       property Stages :TVkStages               read GetParent               ;
-       property Shader :TVkShader               read GetShader write SetShader;  // ＝ VkShaderModule
-       property Entry  :String                  read GetEntry  write SetEntry ;  // 入口関数の名前
-       property Flags  :T_VkShaderStageFlagBits read GetFlags                 ;  // Shader.Stage から導かれる段の種別
+       property Raster  :TVkRaster_              read GetOwnere                ;
+       property Stagers :TVkStagers_             read GetParent                ;
+       property Shader  :TVkShader_              read GetShader write SetShader;  // ＝ VkShaderModule
+       property Entry   :String                  read GetEntry  write SetEntry ;  // 入口関数の名前
+       property Flags   :T_VkShaderStageFlagBits read GetFlags                 ;  // Shader.Stage から導かれる段の種別
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStages
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>
 
-     TVkStages = class( TListParent<TVkRaster,TVkStage> )
+     TVkStagers<TVkSystem_,TVkDevice_,TVkContex_:class> = class( TListParent<TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>,TVkStager<TVkSystem_,TVkDevice_,TVkContex_>> )
      private
+       type TVkRaster_ = TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkStager_ = TVkStager<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkShader_ = TVkShader<TVkSystem_,TVkDevice_,TVkContex_>;
      protected
        ///// E V E N T
-       procedure OnInsertChildr( const Childr_:TVkStage ); override;
-       procedure OnRemoveChildr( const Childr_:TVkStage ); override;
+       procedure OnInsertChildr( const Childr_:TVkStager_ ); override;
+       procedure OnRemoveChildr( const Childr_:TVkStager_ ); override;
      public
        ///// P R O P E R T Y
-       property Raster :TVkRaster read GetOwnere;
+       property Raster :TVkRaster_ read GetOwnere;
        ///// M E T H O D
-       function Add( const Shader_:TVkShader; const Entry_:String = 'main' ) :TVkStage; overload;
+       function Add( const Shader_:TVkShader_; const Entry_:String = 'main' ) :TVkStager_; overload;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRaster
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>
 
-     TVkRaster = class
+     TVkRaster<TVkSystem_,TVkDevice_,TVkContex_:class> = class( TListChildr<TVkContex_,TVkRasters<TVkSystem_,TVkDevice_,TVkContex_>> )
      private
+       type TVkRasters_ = TVkRasters<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkStagers_ = TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkStager_  = TVkStager <TVkSystem_,TVkDevice_,TVkContex_>;
+            TVkPasser_  = TVkPasser <TVkSystem_,TVkDevice_,TVkContex_>;
      protected
-       _Contex    :TVkContex;
        _Handle    :T_VkPipeline;
        _Layout    :T_VkPipelineLayout;
-       _Passer    :TVkPasser;
-       _Stages    :TVkStages;
+       _Passer    :TVkPasser_;
+       _Stagers   :TVkStagers_;
        _Bindins   :TArray<T_VkVertexInputBindingDescription>;
        _Attribs   :TArray<T_VkVertexInputAttributeDescription>;
        _SetLays   :TArray<T_VkDescriptorSetLayout>;
@@ -125,8 +135,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// A C C E S S O R
        function GetHandle :T_VkPipeline; virtual;
        function GetLayout :T_VkPipelineLayout; virtual;
-       function GetPasser :TVkPasser; virtual;
-       procedure SetPasser( const Passer_:TVkPasser ); virtual;
+       function GetPasser :TVkPasser_; virtual;
+       procedure SetPasser( const Passer_:TVkPasser_ ); virtual;
        function GetBindins :TArray<T_VkVertexInputBindingDescription>; virtual;
        procedure SetBindins( const Bindins_:TArray<T_VkVertexInputBindingDescription> ); virtual;
        function GetAttribs :TArray<T_VkVertexInputAttributeDescription>; virtual;
@@ -163,35 +173,47 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function CreateHandle :T_VkResult; virtual;
        function DestroHandle :T_VkResult; virtual;
      public
-       constructor Create( const Contex_:TVkContex ); virtual;
+       constructor Create; override;
+       constructor Create( const Contex_:TVkContex_ ); overload; virtual;
        destructor Destroy; override;
        ///// P R O P E R T Y
-       property Contex    :TVkContex                                  read   _Contex                       ;
-       property Handle    :T_VkPipeline                               read GetHandle                        ;
-       property Layout    :T_VkPipelineLayout                         read GetLayout                        ;
-       property Passer    :TVkPasser                                  read GetPasser    write SetPasser     ;  // 属する描画パス
-       property Stages    :TVkStages                                  read   _Stages                        ;  // シェーダの段
-       property Bindins   :TArray<T_VkVertexInputBindingDescription>  read GetBindins   write SetBindins    ;  // 頂点バッファの束ね方
-       property Attribs   :TArray<T_VkVertexInputAttributeDescription> read GetAttribs  write SetAttribs    ;  // 頂点属性の配置
-       property SetLayouts:TArray<T_VkDescriptorSetLayout>            read GetSetLays   write SetSetLays    ;  // 記述子セットの配置（既定は無し）
-       property PushSize  :Integer                                    read GetPushSize  write SetPushSize   ;  // 押込定数のバイト数（0 なら無し）
-       property PushFlags :T_VkShaderStageFlags                       read GetPushFlags write SetPushFlags  ;  // 押込定数を読む段
-       property Topology  :T_VkPrimitiveTopology                      read GetTopology  write SetTopology   ;
-       property PolyMode  :T_VkPolygonMode                            read GetPolyMode  write SetPolyMode   ;
-       property CullMode  :T_VkCullModeFlags                          read GetCullMode  write SetCullMode   ;
-       property FrontFace :T_VkFrontFace                              read GetFrontFace write SetFrontFace  ;
-       property LineWidth :Single                                     read GetLineWidth write SetLineWidth  ;
-       property DepthTest :Boolean                                    read GetDepthTest write SetDepthTest  ;
-       property DepthWrit :Boolean                                    read GetDepthWrit write SetDepthWrit  ;
-       property DepthOper :T_VkCompareOp                              read GetDepthOper write SetDepthOper  ;
-       property BlendOK   :Boolean                                    read GetBlendOK   write SetBlendOK    ;  // 半透明合成（既定は無し）
-       property BuildOK   :Boolean                                    read GetBuildOK                       ;  // 全段のコンパイルが成功したか
-       property BuildLog  :String                                     read GetBuildLog                      ;  // 全段のコンパイルログ
+       property Contex    :TVkContex_                                  read GetOwnere                      ;
+       property Rasters   :TVkRasters_                                 read GetParent                      ;
+       property Handle    :T_VkPipeline                                read GetHandle                      ;
+       property Layout    :T_VkPipelineLayout                          read GetLayout                      ;
+       property Passer    :TVkPasser_                                  read GetPasser    write SetPasser   ;  // 属する描画パス
+       property Stagers   :TVkStagers_                                 read   _Stagers                     ;  // シェーダの段
+       property Bindins   :TArray<T_VkVertexInputBindingDescription>   read GetBindins   write SetBindins  ;  // 頂点バッファの束ね方
+       property Attribs   :TArray<T_VkVertexInputAttributeDescription> read GetAttribs   write SetAttribs  ;  // 頂点属性の配置
+       property SetLayouts:TArray<T_VkDescriptorSetLayout>             read GetSetLays   write SetSetLays  ;  // 記述子セットの配置（既定は無し）
+       property PushSize  :Integer                                     read GetPushSize  write SetPushSize ;  // 押込定数のバイト数（0 なら無し）
+       property PushFlags :T_VkShaderStageFlags                        read GetPushFlags write SetPushFlags;  // 押込定数を読む段
+       property Topology  :T_VkPrimitiveTopology                       read GetTopology  write SetTopology ;
+       property PolyMode  :T_VkPolygonMode                             read GetPolyMode  write SetPolyMode ;
+       property CullMode  :T_VkCullModeFlags                           read GetCullMode  write SetCullMode ;
+       property FrontFace :T_VkFrontFace                               read GetFrontFace write SetFrontFace;
+       property LineWidth :Single                                      read GetLineWidth write SetLineWidth;
+       property DepthTest :Boolean                                     read GetDepthTest write SetDepthTest;
+       property DepthWrit :Boolean                                     read GetDepthWrit write SetDepthWrit;
+       property DepthOper :T_VkCompareOp                               read GetDepthOper write SetDepthOper;
+       property BlendOK   :Boolean                                     read GetBlendOK   write SetBlendOK  ;  // 半透明合成（既定は無し）
+       property BuildOK   :Boolean                                     read GetBuildOK                     ;  // 全段のコンパイルが成功したか
+       property BuildLog  :String                                      read GetBuildLog                    ;  // 全段のコンパイルログ
        ///// M E T H O D
        function DeviceHandle :T_VkDevice;
        procedure FreeHandle;
        procedure AddBindin( const Binding_,Stride_:T_uint32_t; const Rate_:T_VkVertexInputRate = VK_VERTEX_INPUT_RATE_VERTEX );
        procedure AddAttrib( const Location_,Binding_:T_uint32_t; const Format_:T_VkFormat; const Offset_:T_uint32_t );
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRasters<TVkSystem_,TVkDevice_,TVkContex_>
+
+     TVkRasters<TVkSystem_,TVkDevice_,TVkContex_:class> = class( TListParent<TVkContex_,TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>> )
+     private
+     protected
+     public
+       ///// P R O P E R T Y
+       property Contex :TVkContex_ read GetOwnere;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C O N S T A N T 】
@@ -205,7 +227,8 @@ function VkStageOfGlslang( const Stage_:T_glslang_stage_t ) :T_VkShaderStageFlag
 
 implementation //############################################################### ■
 
-uses System.SysUtils;
+uses System.SysUtils,
+     LUX.Vulkan.Contex;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
 
@@ -226,30 +249,30 @@ end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 C L A S S 】
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStage
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStager<TVkSystem_,TVkDevice_,TVkContex_>
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkStage.GetShader :TVkShader;
+function TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.GetShader :TVkShader_;
 begin
      Result := _Shader;
 end;
 
-procedure TVkStage.SetShader( const Shader_:TVkShader );
+procedure TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.SetShader( const Shader_:TVkShader_ );
 begin
      _Shader := Shader_;
 
      if Assigned( Raster ) then Raster.FreeHandle;
 end;
 
-function TVkStage.GetEntry :String;
+function TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.GetEntry :String;
 begin
      Result := _Entry;
 end;
 
-procedure TVkStage.SetEntry( const Entry_:String );
+procedure TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.SetEntry( const Entry_:String );
 begin
      _Entry := Entry_;
 
@@ -258,7 +281,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkStage.GetFlags :T_VkShaderStageFlagBits;
+function TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.GetFlags :T_VkShaderStageFlagBits;
 begin
      if Assigned( _Shader ) then Result := VkStageOfGlslang( _Shader.Stage )
                             else Result := VK_SHADER_STAGE_ALL;
@@ -266,7 +289,7 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkStage.Create;
+constructor TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.Create;
 begin
      inherited;
 
@@ -274,28 +297,28 @@ begin
      _Entry  := 'main';
 end;
 
-constructor TVkStage.Create( const Stages_:TVkStages; const Shader_:TVkShader; const Entry_:String );
+constructor TVkStager<TVkSystem_,TVkDevice_,TVkContex_>.Create( const Stagers_:TVkStagers_; const Shader_:TVkShader_; const Entry_:String );
 begin
-     inherited Create( Stages_ );
+     inherited Create( Stagers_ );
 
      _Shader := Shader_;
      _Entry  := Entry_;
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStages
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 ////////////////////////////////////////////////////////////////////// E V E N T
 
-procedure TVkStages.OnInsertChildr( const Childr_:TVkStage );
+procedure TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>.OnInsertChildr( const Childr_:TVkStager_ );
 begin
      inherited;
 
      if Assigned( Raster ) then Raster.FreeHandle;  // 段の増減はパイプラインを作り直す
 end;
 
-procedure TVkStages.OnRemoveChildr( const Childr_:TVkStage );
+procedure TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>.OnRemoveChildr( const Childr_:TVkStager_ );
 begin
      inherited;
 
@@ -306,25 +329,25 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkStages.Add( const Shader_:TVkShader; const Entry_:String ) :TVkStage;
+function TVkStagers<TVkSystem_,TVkDevice_,TVkContex_>.Add( const Shader_:TVkShader_; const Entry_:String ) :TVkStager_;
 begin
-     Result := TVkStage.Create( Self, Shader_, Entry_ );
+     Result := TVkStager_.Create( Self, Shader_, Entry_ );
 end;
 
-//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRaster
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 //////////////////////////////////////////////////////////////// A C C E S S O R
 
-function TVkRaster.GetHandle :T_VkPipeline;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetHandle :T_VkPipeline;
 begin
      if _Handle = Default( T_VkPipeline ) then CheckVk( CreateHandle, 'TVkRaster.CreateHandle is Error!' );
 
      Result := _Handle;
 end;
 
-function TVkRaster.GetLayout :T_VkPipelineLayout;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetLayout :T_VkPipelineLayout;
 begin
      if _Layout = Default( T_VkPipelineLayout ) then CheckVk( CreateLayout, 'TVkRaster.CreateLayout is Error!' );
 
@@ -333,12 +356,12 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.GetPasser :TVkPasser;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetPasser :TVkPasser_;
 begin
      Result := _Passer;
 end;
 
-procedure TVkRaster.SetPasser( const Passer_:TVkPasser );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetPasser( const Passer_:TVkPasser_ );
 begin
      if Passer_ = _Passer then Exit;
 
@@ -347,58 +370,58 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.GetBindins :TArray<T_VkVertexInputBindingDescription>;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetBindins :TArray<T_VkVertexInputBindingDescription>;
 begin
      Result := _Bindins;
 end;
 
-procedure TVkRaster.SetBindins( const Bindins_:TArray<T_VkVertexInputBindingDescription> );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetBindins( const Bindins_:TArray<T_VkVertexInputBindingDescription> );
 begin
      _Bindins := Bindins_;  FreeHandle;
 end;
 
-function TVkRaster.GetAttribs :TArray<T_VkVertexInputAttributeDescription>;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetAttribs :TArray<T_VkVertexInputAttributeDescription>;
 begin
      Result := _Attribs;
 end;
 
-procedure TVkRaster.SetAttribs( const Attribs_:TArray<T_VkVertexInputAttributeDescription> );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetAttribs( const Attribs_:TArray<T_VkVertexInputAttributeDescription> );
 begin
      _Attribs := Attribs_;  FreeHandle;
 end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.GetSetLays :TArray<T_VkDescriptorSetLayout>;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetSetLays :TArray<T_VkDescriptorSetLayout>;
 begin
      Result := _SetLays;
 end;
 
-procedure TVkRaster.SetSetLays( const SetLays_:TArray<T_VkDescriptorSetLayout> );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetSetLays( const SetLays_:TArray<T_VkDescriptorSetLayout> );
 begin
      _SetLays := SetLays_;  FreeHandle;  DestroLayout;
 end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.GetPushSize :Integer;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetPushSize :Integer;
 begin
      Result := _PushSize;
 end;
 
-procedure TVkRaster.SetPushSize( const PushSize_:Integer );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetPushSize( const PushSize_:Integer );
 begin
      if PushSize_ = _PushSize then Exit;
 
      _PushSize := PushSize_;  FreeHandle;  DestroLayout;
 end;
 
-function TVkRaster.GetPushFlags :T_VkShaderStageFlags;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetPushFlags :T_VkShaderStageFlags;
 begin
      Result := _PushFlags;
 end;
 
-procedure TVkRaster.SetPushFlags( const PushFlags_:T_VkShaderStageFlags );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetPushFlags( const PushFlags_:T_VkShaderStageFlags );
 begin
      if PushFlags_ = _PushFlags then Exit;
 
@@ -407,108 +430,108 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.GetTopology :T_VkPrimitiveTopology;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetTopology :T_VkPrimitiveTopology;
 begin
      Result := _Topology;
 end;
 
-procedure TVkRaster.SetTopology( const Topology_:T_VkPrimitiveTopology );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetTopology( const Topology_:T_VkPrimitiveTopology );
 begin
      if Topology_ = _Topology then Exit;
 
      _Topology := Topology_;  FreeHandle;
 end;
 
-function TVkRaster.GetPolyMode :T_VkPolygonMode;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetPolyMode :T_VkPolygonMode;
 begin
      Result := _PolyMode;
 end;
 
-procedure TVkRaster.SetPolyMode( const PolyMode_:T_VkPolygonMode );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetPolyMode( const PolyMode_:T_VkPolygonMode );
 begin
      if PolyMode_ = _PolyMode then Exit;
 
      _PolyMode := PolyMode_;  FreeHandle;
 end;
 
-function TVkRaster.GetCullMode :T_VkCullModeFlags;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetCullMode :T_VkCullModeFlags;
 begin
      Result := _CullMode;
 end;
 
-procedure TVkRaster.SetCullMode( const CullMode_:T_VkCullModeFlags );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetCullMode( const CullMode_:T_VkCullModeFlags );
 begin
      if CullMode_ = _CullMode then Exit;
 
      _CullMode := CullMode_;  FreeHandle;
 end;
 
-function TVkRaster.GetFrontFace :T_VkFrontFace;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetFrontFace :T_VkFrontFace;
 begin
      Result := _FrontFace;
 end;
 
-procedure TVkRaster.SetFrontFace( const FrontFace_:T_VkFrontFace );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetFrontFace( const FrontFace_:T_VkFrontFace );
 begin
      if FrontFace_ = _FrontFace then Exit;
 
      _FrontFace := FrontFace_;  FreeHandle;
 end;
 
-function TVkRaster.GetLineWidth :Single;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetLineWidth :Single;
 begin
      Result := _LineWidth;
 end;
 
-procedure TVkRaster.SetLineWidth( const LineWidth_:Single );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetLineWidth( const LineWidth_:Single );
 begin
      if LineWidth_ = _LineWidth then Exit;
 
      _LineWidth := LineWidth_;  FreeHandle;
 end;
 
-function TVkRaster.GetDepthTest :Boolean;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetDepthTest :Boolean;
 begin
      Result := _DepthTest;
 end;
 
-procedure TVkRaster.SetDepthTest( const DepthTest_:Boolean );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetDepthTest( const DepthTest_:Boolean );
 begin
      if DepthTest_ = _DepthTest then Exit;
 
      _DepthTest := DepthTest_;  FreeHandle;
 end;
 
-function TVkRaster.GetDepthWrit :Boolean;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetDepthWrit :Boolean;
 begin
      Result := _DepthWrit;
 end;
 
-procedure TVkRaster.SetDepthWrit( const DepthWrit_:Boolean );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetDepthWrit( const DepthWrit_:Boolean );
 begin
      if DepthWrit_ = _DepthWrit then Exit;
 
      _DepthWrit := DepthWrit_;  FreeHandle;
 end;
 
-function TVkRaster.GetDepthOper :T_VkCompareOp;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetDepthOper :T_VkCompareOp;
 begin
      Result := _DepthOper;
 end;
 
-procedure TVkRaster.SetDepthOper( const DepthOper_:T_VkCompareOp );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetDepthOper( const DepthOper_:T_VkCompareOp );
 begin
      if DepthOper_ = _DepthOper then Exit;
 
      _DepthOper := DepthOper_;  FreeHandle;
 end;
 
-function TVkRaster.GetBlendOK :Boolean;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetBlendOK :Boolean;
 begin
      Result := _BlendOK;
 end;
 
-procedure TVkRaster.SetBlendOK( const BlendOK_:Boolean );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.SetBlendOK( const BlendOK_:Boolean );
 begin
      if BlendOK_ = _BlendOK then Exit;
 
@@ -517,14 +540,14 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.GetBuildOK :Boolean;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetBuildOK :Boolean;
 var
-   S :TVkStage;
+   S :TVkStager_;
    N :Integer;
 begin
      N := 0;
 
-     for S in _Stages do
+     for S in _Stagers do
      begin
           if not Assigned( S.Shader ) then Exit( False );
 
@@ -536,14 +559,14 @@ begin
      Result := N > 0;  // 段がひとつも無ければ未完成
 end;
 
-function TVkRaster.GetBuildLog :String;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.GetBuildLog :String;
 var
-   S :TVkStage;
+   S :TVkStager_;
    L :String;
 begin
      Result := '';
 
-     for S in _Stages do
+     for S in _Stagers do
      begin
           if not Assigned( S.Shader ) then Continue;
 
@@ -555,7 +578,7 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkRaster.CreateLayout :T_VkResult;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.CreateLayout :T_VkResult;
 var
    R :T_VkPushConstantRange;
    I :T_VkPipelineLayoutCreateInfo;
@@ -586,7 +609,7 @@ begin
      Result := vkCreatePipelineLayout( DeviceHandle, @I, nil, @_Layout );
 end;
 
-function TVkRaster.DestroLayout :T_VkResult;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.DestroLayout :T_VkResult;
 begin
      if _Layout <> Default( T_VkPipelineLayout ) then
      begin
@@ -600,12 +623,12 @@ end;
 
 //------------------------------------------------------------------------------
 
-function TVkRaster.CreateHandle :T_VkResult;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.CreateHandle :T_VkResult;
 var
    Ss :TArray<T_VkPipelineShaderStageCreateInfo>;
    Ns :TArray<AnsiString>;
    Ds :array [ 0..1 ] of T_VkDynamicState;
-   S :TVkStage;
+   S :TVkStager_;
    N :Integer;
    VI :T_VkPipelineVertexInputStateCreateInfo;
    AI :T_VkPipelineInputAssemblyStateCreateInfo;
@@ -622,7 +645,7 @@ begin
 
      ////////// SHADER STAGES
 
-     N := 0;  for S in _Stages do Inc( N );
+     N := 0;  for S in _Stagers do Inc( N );
 
      if N = 0 then Exit( VK_ERROR_INITIALIZATION_FAILED );  // 段がひとつも無い
 
@@ -630,7 +653,7 @@ begin
      SetLength( Ns, N );  // pName の指す先を、呼び出しが終わるまで生存させる
 
      N := 0;
-     for S in _Stages do
+     for S in _Stagers do
      begin
           if not Assigned( S.Shader ) then Exit( VK_ERROR_INITIALIZATION_FAILED );
 
@@ -778,7 +801,7 @@ begin
      Result := vkCreateGraphicsPipelines( DeviceHandle, Default( T_VkPipelineCache ), 1, @PI, nil, @_Handle );
 end;
 
-function TVkRaster.DestroHandle :T_VkResult;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.DestroHandle :T_VkResult;
 begin
      vkDestroyPipeline( DeviceHandle, _Handle, nil );
 
@@ -789,17 +812,15 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
-constructor TVkRaster.Create( const Contex_:TVkContex );
+constructor TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.Create;
 begin
-     inherited Create;
-
-     _Contex := Contex_;
+     inherited;
 
      _Handle := Default( T_VkPipeline );
      _Layout := Default( T_VkPipelineLayout );
      _Passer := nil;
 
-     _Stages := TVkStages.Create( Self );
+     _Stagers := TVkStagers_.Create( Self );
 
      _Bindins := nil;
      _Attribs := nil;
@@ -821,9 +842,14 @@ begin
      _BlendOK := False;
 end;
 
-destructor TVkRaster.Destroy;
+constructor TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.Create( const Contex_:TVkContex_ );
 begin
-     _Stages.Free;
+     inherited Create( TVkContex<TVkSystem_,TVkDevice_>( Contex_ ).Rasters );
+end;
+
+destructor TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.Destroy;
+begin
+     _Stagers.Free;
 
      FreeHandle;
      DestroLayout;
@@ -833,19 +859,19 @@ end;
 
 //////////////////////////////////////////////////////////////////// M E T H O D
 
-function TVkRaster.DeviceHandle :T_VkDevice;
+function TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.DeviceHandle :T_VkDevice;
 begin
-     Result := _Contex.Handle;
+     Result := TVkContex<TVkSystem_,TVkDevice_>( Contex ).Handle;
 end;
 
-procedure TVkRaster.FreeHandle;
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.FreeHandle;
 begin
      if _Handle <> Default( T_VkPipeline ) then DestroHandle;
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TVkRaster.AddBindin( const Binding_,Stride_:T_uint32_t; const Rate_:T_VkVertexInputRate );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.AddBindin( const Binding_,Stride_:T_uint32_t; const Rate_:T_VkVertexInputRate );
 var
    B :T_VkVertexInputBindingDescription;
 begin
@@ -856,7 +882,7 @@ begin
      _Bindins := _Bindins + [ B ];  FreeHandle;
 end;
 
-procedure TVkRaster.AddAttrib( const Location_,Binding_:T_uint32_t; const Format_:T_VkFormat; const Offset_:T_uint32_t );
+procedure TVkRaster<TVkSystem_,TVkDevice_,TVkContex_>.AddAttrib( const Location_,Binding_:T_uint32_t; const Format_:T_VkFormat; const Offset_:T_uint32_t );
 var
    A :T_VkVertexInputAttributeDescription;
 begin
@@ -867,6 +893,14 @@ begin
 
      _Attribs := _Attribs + [ A ];  FreeHandle;
 end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TVkRasters<TVkSystem_,TVkDevice_,TVkContex_>
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【 R O U T I N E 】
 
