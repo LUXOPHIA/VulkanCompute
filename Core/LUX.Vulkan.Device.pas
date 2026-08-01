@@ -305,6 +305,10 @@ begin
      end;
 
      Result := vkCreateInstance( @I, nil, @_Handle );
+
+     // 拡張の関数は vulkan-1.dll から公開されていないため、
+     // インスタンス経由で全入口（拡張を含む）を取得し直す。
+     if Result = VK_SUCCESS then LoadInstanceFunctions( _Handle );
 end;
 
 function TVkDevices<TVkSystem_>.DestroHandle :T_VkResult;

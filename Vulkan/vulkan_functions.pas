@@ -1141,10 +1141,15 @@ function LoadFunctions( const LibName_:String = DLLNAME ) :Boolean;
 
 // vkGetInstanceProcAddr 経由で、インスタンス以下の全入口を取得する。
 // 拡張の関数は DLL から公開されていないので、拡張を使うにはこちらが必須。
+// （TVkDevices がインスタンス生成直後に自動で呼ぶ。取得される入口はローダの
+//   トランポリンなので、デバイスが何個あっても正しく振り分けられる）
 procedure LoadInstanceFunctions( const instance_:T_VkInstance );
 
 // vkGetDeviceProcAddr 経由で、デバイス階層の入口を取得し直す。
-// ローダのトランポリンを介さなくなるので、呼び出しが速くなる。
+// ローダのトランポリンを介さなくなるので、呼び出しが速くなるだけの最適化。
+// ※ 取得した入口は指定デバイス専用。関数ポインタはグローバル変数なので、
+//    VkDevice を複数使うアプリで呼ぶと他デバイスの呼び出しが壊れる。
+//    単一デバイスと分かっているアプリだけが任意で呼ぶこと（自動では呼ばれない）。
 procedure LoadDeviceFunctions( const device_:T_VkDevice );
 
 implementation //############################################################### ■
