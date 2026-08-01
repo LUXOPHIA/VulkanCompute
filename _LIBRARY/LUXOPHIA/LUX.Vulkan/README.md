@@ -259,9 +259,10 @@ Nothing has to fill the bars. The render pass clears the **whole destination** w
   ┣・LUX.Vulkan.pas                             ･･･ Concrete aliases of /Core
   ┣・Vulkan/                                    ･･･ port of official C headers
   ┃  ┣・vk_platform.pas                        ･･･ Platform-specific types
-  ┃  ┣・vulkan_core.pas                        ･･･ API 1.0-1.3 ＋ WSI exts
-  ┃  ┣・vulkan_win32.pas                       ･･･ VK_KHR_win32_surface
-  ┃  ┗・vulkan_functions.pas                   ･･･ Loads vulkan-1.dll commands
+  ┃  ┣・vulkan_core.pas                        ･･･ API 1.0-1.4 ＋ all exts
+  ┃  ┣・vulkan_win32.pas                       ･･･ All Win32 blocks
+  ┃  ┣・vulkan_functions.pas                   ･･･ Dynamic entry loading
+  ┃  ┗・vk_video/                              ･･･ Video codec std types
   ┣・Glslang/                                   ･･･ GLSL compiler binding
   ┃  ┣・glslang_c_shader_types.pas             ･･･ Enums
   ┃  ┣・glslang_c_interface.pas                ･･･ DefaultTBuiltInResource
@@ -300,9 +301,14 @@ Nothing has to fill the bars. The render pass clears the **whole destination** w
 
 Delphi translations of the official C headers（Vulkan-Headers [4], introduced as a subtree under `/：KhronosGroup`）.
 
+**Whatever header is ported is ported in full.** That means all 438 feature blocks of `vulkan_core.h` (5 core versions, 1.0 through 1.4, plus 433 extensions) and all 9 blocks of `vulkan_win32.h`, including APIs no demo ever calls. The 12 headers under `vk_video/` are included for the same reason — `vulkan_core.h` `#include`s them. The remaining headers in `include/vulkan/` (surfaces for other platforms, etc.) are not ported.
+
 Naming follows a mechanical convention:
 C type `VkFoo` → `T_VkFoo` ／ pointer `P_VkFoo` ／ function type `PFN_vkFoo` → `T_PFN_vkFoo`.
 All constants (`VK_...`) keep their original names.
+C bitfields are folded into 32-bit storage words and exposed as named properties (`vk_video/` only).
+
+Entry points are loaded in three stages. `LoadFunctions` takes what `vulkan-1.dll` exports (core plus some WSI), `LoadInstanceFunctions( instance )` fills in every entry — extensions included — through `vkGetInstanceProcAddr`, and `LoadDeviceFunctions( device )` re-resolves the device tier through `vkGetDeviceProcAddr`. **Extension commands are not exported by the DLL, so the second stage is mandatory if you use any extension.**
 
 #### 3.1.2 `/Glslang` : GLSL compiler
 

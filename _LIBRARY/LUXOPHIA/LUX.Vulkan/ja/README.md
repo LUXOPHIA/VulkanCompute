@@ -259,9 +259,10 @@ $w_d \times h_d$ 画素の描画先に対して、ビューポートはカメラ
   ┣・LUX.Vulkan.pas                             ･･･ /Core の具象別名
   ┣・Vulkan/                                    ･･･ 公式 C ヘッダの Delphi 訳
   ┃  ┣・vk_platform.pas                        ･･･ プラットフォーム固有型
-  ┃  ┣・vulkan_core.pas                        ･･･ API 1.0-1.3 ＋ WSI 拡張
-  ┃  ┣・vulkan_win32.pas                       ･･･ VK_KHR_win32_surface
-  ┃  ┗・vulkan_functions.pas                   ･･･ vulkan-1.dll を動的ロード
+  ┃  ┣・vulkan_core.pas                        ･･･ API 1.0-1.4 ＋ 全拡張
+  ┃  ┣・vulkan_win32.pas                       ･･･ Win32 の全ブロック
+  ┃  ┣・vulkan_functions.pas                   ･･･ 入口の動的ロード
+  ┃  ┗・vk_video/                              ･･･ 映像コーデックの規格型
   ┣・Glslang/                                   ･･･ コンパイラのバインディング
   ┃  ┣・glslang_c_shader_types.pas             ･･･ 列挙型
   ┃  ┣・glslang_c_interface.pas                ･･･ DefaultTBuiltInResource
@@ -300,9 +301,14 @@ $w_d \times h_d$ 画素の描画先に対して、ビューポートはカメラ
 
 公式 C ヘッダ（Vulkan-Headers [4]。`/：KhronosGroup` に SubTree で導入済）から生成した Delphi 訳。
 
+**移植したヘッダについては、その全内容を漏れなく収録しています。** `vulkan_core.h` の 438 フィーチャーブロック（コア 1.0〜1.4 の 5 個 ＋ 拡張 433 個）と `vulkan_win32.h` の 9 ブロックが対象で、デモで使わない API も含めてすべて翻訳済みです。`vulkan_core.h` が `#include` している `vk_video/` の 12 ヘッダも同じ理由で収録してあります。なお `include/vulkan/` の残りのヘッダ（他プラットフォームの surface 等）は移植していません。
+
 命名は機械的な規約に従います。
 C の型 `VkFoo` → `T_VkFoo` ／ ポインタ `P_VkFoo` ／ 関数型 `PFN_vkFoo` → `T_PFN_vkFoo`。
 定数（`VK_...`）は元の名前のままです。
+C のビットフィールドは 32 ビットの格納語へ畳み、名前つきプロパティで読み書きします（`vk_video/` のみ）。
+
+入口の取得は 3 段階です。`LoadFunctions` が `vulkan-1.dll` の公開シンボル（コア＋一部の WSI）を取り、`LoadInstanceFunctions( instance )` が `vkGetInstanceProcAddr` 経由で拡張を含む全入口を埋め、`LoadDeviceFunctions( device )` が `vkGetDeviceProcAddr` でデバイス階層を取り直します。**拡張の関数は DLL から公開されていないので、拡張を使うには 2 段目が必須です。**
 
 #### 3.1.2 `/Glslang` ：GLSL コンパイラ
 

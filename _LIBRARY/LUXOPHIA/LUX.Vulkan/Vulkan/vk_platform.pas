@@ -1,9 +1,8 @@
 ﻿unit vk_platform;
 
 (*
-** Copyright 2014-2024 The Khronos Group Inc.
-**
-** SPDX-License-Identifier: Apache-2.0
+** Copyright 2014-2026 The Khronos Group Inc.
+** SPDX-License-Identifier: Apache-2.0 OR MIT
 *)
 
 (*
